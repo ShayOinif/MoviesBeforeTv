@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'
+    id 'com.google.dagger.hilt.android'
+    id 'androidx.navigation.safeargs.kotlin'
+
+}
+
+android {
+    namespace 'com.shayo.moviesbeforetv.tv'
+    compileSdk 32
+
+    defaultConfig {
+        applicationId "com.shayo.moviesbeforetv.tv"
+        minSdk 21
+        targetSdk 32
+        versionCode 1
+        versionName "1.0"
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+
+    implementation project(':data:movies')
+
+    implementation files('libs/YouTubeAndroidPlayerApi.jar')
+
+    // Kotlin
+    implementation "androidx.navigation:navigation-fragment-ktx:2.5.3"
+    implementation "androidx.navigation:navigation-ui-ktx:2.5.3"
+
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
+
+    implementation 'androidx.navigation:navigation-runtime-ktx:2.5.3'
+
+    implementation 'androidx.leanback:leanback-paging:1.1.0-alpha09'
+
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
+    implementation 'androidx.leanback:leanback:1.0.0'
+
+    implementation 'com.github.bumptech.glide:glide:4.11.0'
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/myBrowseFragment">
+
+    <fragment
+        android:id="@+id/myBrowseFragment"
+        android:name="com.shayo.moviesbeforetv.tv.MyBrowseFragment"
+        android:label="MyBrowseFragment" >
+        <action
+            android:id="@+id/action_myBrowseFragment_to_detailFragment"
+            app:destination="@id/detailFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/detailFragment"
+        android:name="com.shayo.moviesbeforetv.tv.DetailFragment"
+        android:label="DetailFragment" >
+        <argument
+            android:name="movie"
+            app:argType="com.shayo.movies.Movie" />
+        <action
+            android:id="@+id/action_detailFragment_to_myVideoFragment"
+            app:destination="@id/myVideoFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/myVideoFragment"
+        android:name="com.shayo.moviesbeforetv.tv.MyVideoFragment"
+        android:label="MyVideoFragment" >
+        <argument
+            android:name="movie"
+            app:argType="com.shayo.movies.Movie" />
+    </fragment>
+</navigation>
