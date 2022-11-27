@@ -19,16 +19,5 @@
         <argument
             android:name="movie"
             app:argType="com.shayo.movies.Movie" />
-        <action
-            android:id="@+id/action_detailFragment_to_myVideoFragment"
-            app:destination="@id/myVideoFragment" />
-    </fragment>
-    <fragment
-        android:id="@+id/myVideoFragment"
-        android:name="com.shayo.moviesbeforetv.tv.MyVideoFragment"
-        android:label="MyVideoFragment" >
-        <argument
-            android:name="movie"
-            app:argType="com.shayo.movies.Movie" />
     </fragment>
 </navigation>

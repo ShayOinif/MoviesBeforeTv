@@ -13,7 +13,8 @@ data class Movie(
     val backdropPath: String?,
     val overview: String,
     val releaseDate: String,
+    val voteAverage: Double,
 ) : Parcelable
 
 internal fun NetworkMovie.mapToMovie() =
-    Movie(id, title, posterPath, backdropPath, overview, releaseDate)
+    Movie(id, title, posterPath, backdropPath, overview, releaseDate, voteAverage)
