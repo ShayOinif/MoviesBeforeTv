@@ -35,9 +35,8 @@ class DetailFragment : DetailsSupportFragment() {
 
         val row = DetailsOverviewRow(movie)
 
-
         Glide.with(requireActivity())
-            .load("https://image.tmdb.org/t/p/w500/${movie.posterPath}")
+            .load("https://image.tmdb.org/t/p/original/${movie.posterPath}")
             .centerCrop()
             .into<SimpleTarget<Drawable>>(object : SimpleTarget<Drawable>() {
                 override fun onResourceReady(
@@ -69,22 +68,8 @@ class DetailFragment : DetailsSupportFragment() {
 
         mAdapter.add(row)
 
-       /* mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size())
-        setupRelatedMovieListRow()
-        */
-
 
         val detailsPresenter = FullWidthDetailsOverviewRowPresenter(DetailsDescriptionPresenter())
-        /*detailsPresenter.backgroundColor =
-            ContextCompat.getColor(activity!!, R.color.selected_background)
-
-        // Hook up transition element.
-        val sharedElementHelper = FullWidthDetailsOverviewSharedElementHelper()
-        sharedElementHelper.setSharedElementEnterTransition(
-            activity, DetailsActivity.SHARED_ELEMENT_NAME
-        )
-        detailsPresenter.setListener(sharedElementHelper)
-        detailsPresenter.isParticipatingEntranceTransition = true */
 
         mPresenterSelector.addClassPresenter(DetailsOverviewRow::class.java, detailsPresenter)
         detailsPresenter.backgroundColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
@@ -113,9 +98,9 @@ class DetailFragment : DetailsSupportFragment() {
         detailsPresenter.onActionClickedListener = OnActionClickedListener { action ->
             if (action.id == 0L) {
 
-                findNavController().navigate(
+                /*findNavController().navigate(
                     DetailFragmentDirections.actionDetailFragmentToMyVideoFragment(movie)
-                )
+                )*/
             }
         }
     }

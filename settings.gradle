@@ -21,8 +21,7 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "MoviesBeforeTv"
-include ':app'
 include ':core:network'
 include ':data:movies'
-include ':feature:home'
 include ':tv'
+include ':core:db'
