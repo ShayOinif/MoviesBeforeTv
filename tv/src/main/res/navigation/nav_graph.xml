@@ -11,6 +11,9 @@
         <action
             android:id="@+id/action_myBrowseFragment_to_detailFragment"
             app:destination="@id/detailFragment" />
+        <action
+            android:id="@+id/action_myBrowseFragment_to_mySearchFragment"
+            app:destination="@id/mySearchFragment" />
     </fragment>
     <fragment
         android:id="@+id/detailFragment"
@@ -19,5 +22,27 @@
         <argument
             android:name="movie"
             app:argType="com.shayo.movies.Movie" />
+        <action
+            android:id="@+id/action_detailFragment_to_trailerPlayer"
+            app:destination="@id/trailerPlayer" />
+    </fragment>
+    <fragment
+        android:id="@+id/trailerPlayer"
+        android:name="com.shayo.moviesbeforetv.tv.TrailerPlayer"
+        android:label="TrailerPlayer" >
+        <argument
+            android:name="youtubeId"
+            app:argType="string" />
+        <argument
+            android:name="movie"
+            app:argType="com.shayo.movies.Movie" />
+    </fragment>
+    <fragment
+        android:id="@+id/mySearchFragment"
+        android:name="com.shayo.moviesbeforetv.tv.MySearchFragment"
+        android:label="MySearchFragment" >
+        <action
+            android:id="@+id/action_mySearchFragment_to_detailFragment"
+            app:destination="@id/detailFragment" />
     </fragment>
 </navigation>

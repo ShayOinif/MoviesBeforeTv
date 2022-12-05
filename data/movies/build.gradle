@@ -38,9 +38,8 @@ dependencies {
     implementation(libs.paging.runtime)
 
     implementation project(':core:network')
+    implementation project(':core:db')
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
-
-    testImplementation 'junit:junit:4.13.2'
 }

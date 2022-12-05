@@ -12,9 +12,10 @@ data class Movie(
     val posterPath: String?,
     val backdropPath: String?,
     val overview: String,
-    val releaseDate: String,
+    val releaseDate: String?,
     val voteAverage: Double,
+    val genres: List<Genre>,
 ) : Parcelable
 
 internal fun NetworkMovie.mapToMovie() =
-    Movie(id, title, posterPath, backdropPath, overview, releaseDate, voteAverage)
+    Movie(id, title, posterPath, backdropPath, overview, releaseDate, voteAverage, genreIds.map { Genre(it, "") })

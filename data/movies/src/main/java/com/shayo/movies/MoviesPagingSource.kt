@@ -4,7 +4,7 @@ import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.shayo.network.MovieNetworkResponse
 
-internal class MoviesPagingSource(
+internal open class MoviesPagingSource(
     private val loadingFun: suspend (page: Int) -> Result<MovieNetworkResponse>,
 ) : PagingSource<Int, Movie>() {
 
@@ -12,7 +12,7 @@ internal class MoviesPagingSource(
 
     override suspend fun load(
         params: LoadParams<Int>
-    ): LoadResult<Int, Movie> {
+    ): PagingSource.LoadResult<Int, Movie> {
         // Start refresh at page 1 if undefined.
         val nextPageNumber = params.key ?: 1
 

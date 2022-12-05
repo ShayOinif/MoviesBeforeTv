@@ -11,7 +11,9 @@ data class NetworkMovie(
     val backdropPath: String?,
     val overview: String,
     @SerializedName("release_date")
-    val releaseDate: String,
+    val releaseDate: String?,
     @SerializedName("vote_average")
     val voteAverage: Double,
+    @SerializedName("genre_ids")
+    val genreIds: List<Int>,
 )

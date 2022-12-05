@@ -13,7 +13,9 @@ import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
 import com.shayo.movies.Movie
 import com.shayo.movies.MoviesRepository
+import com.shayo.movies.VideoRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -22,6 +24,11 @@ class DetailFragment : DetailsSupportFragment() {
 
     @Inject
     lateinit var moviesRepository: MoviesRepository
+
+    @Inject
+    lateinit var videoRepository: VideoRepository
+
+    private var trailer: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,20 +57,48 @@ class DetailFragment : DetailsSupportFragment() {
 
         val actionAdapter = ArrayObjectAdapter()
 
-        actionAdapter.add(
-            Action(
-                0,
-                "Watch Trailer",
-                ""
-            )
+        lifecycleScope.launch {
+
+            videoRepository.getTrailer(movie.id).onSuccess {
+                it?.apply {
+                    trailer = it.key
+
+                    actionAdapter.add(
+                        Action(
+                            0,
+                            "Watch Trailer",
+                            ""
+                        )
+                    )
+                }
+            }
+        }
+
+        val watchListAction = Action(
+            1,
+            "Add To Watchlist",
+            ""
         )
+
         actionAdapter.add(
-            Action(
-                1,
-                "Add To Watchlist",
-                ""
-            )
+            watchListAction
         )
+
+        lifecycleScope.launch {
+            moviesRepository.favoritesMap.collectLatest {
+
+                watchListAction.label1 = if (it.containsKey(movie.id)) {
+                    "Remove From Watchlist"
+                } else {
+                    "Add To Watchlist"
+                }
+
+                actionAdapter.replace(
+                    0, watchListAction
+                )
+            }
+        }
+
         row.actionsAdapter = actionAdapter
 
         mAdapter.add(row)
@@ -72,17 +107,15 @@ class DetailFragment : DetailsSupportFragment() {
         val detailsPresenter = FullWidthDetailsOverviewRowPresenter(DetailsDescriptionPresenter())
 
         mPresenterSelector.addClassPresenter(DetailsOverviewRow::class.java, detailsPresenter)
-        detailsPresenter.backgroundColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
+        detailsPresenter.backgroundColor =
+            ContextCompat.getColor(requireActivity(), R.color.brand_color)
 
-        lifecycleScope.launch {
-            val listRowAdapter = ArrayObjectAdapter(CardPresenter())
-
-
+        lifecycleScope.launch { // TODO:
+            /*val listRowAdapter = ArrayObjectAdapter(CardPresenter())
 
             val movies = moviesRepository.getMovies("popular").getOrNull()!!
 
             movies.forEach {
-
                 if (it.id != movie.id)
                     listRowAdapter.add(it)
             }
@@ -92,15 +125,27 @@ class DetailFragment : DetailsSupportFragment() {
             mPresenterSelector.addClassPresenter(ListRow::class.java, ListRowPresenter())
 
 
-            adapter = mAdapter
+            adapter = mAdapter*/
         }
 
-        detailsPresenter.onActionClickedListener = OnActionClickedListener { action ->
-            if (action.id == 0L) {
+        adapter = mAdapter
 
-                /*findNavController().navigate(
-                    DetailFragmentDirections.actionDetailFragmentToMyVideoFragment(movie)
-                )*/
+        detailsPresenter.onActionClickedListener = OnActionClickedListener { action ->
+            when (action.id) {
+
+                1L -> {
+                    lifecycleScope.launch {
+                        moviesRepository.toggleFavorite(movie)
+                    }
+                }
+                0L -> {
+                    findNavController().navigate(
+                        DetailFragmentDirections.actionDetailFragmentToTrailerPlayer(
+                            trailer!!,
+                            movie
+                        )
+                    )
+                }
             }
         }
     }
@@ -116,6 +161,6 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
 
         viewHolder.title.text = movie.title
         viewHolder.subtitle.text = movie.releaseDate
-        viewHolder.body.text = movie.overview
+        viewHolder.body.text = "${movie.genres.joinToString(" - ") { it.name }}\n${movie.overview}"
     }
 }

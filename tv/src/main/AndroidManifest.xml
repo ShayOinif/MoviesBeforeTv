@@ -3,12 +3,6 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <queries>
-        <intent>
-            <action android:name="com.google.android.youtube.api.service.START" />
-        </intent>
-    </queries>
-
     <uses-feature
         android:name="android.software.leanback"
         android:required="true" />
@@ -29,6 +23,7 @@
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
+                <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
