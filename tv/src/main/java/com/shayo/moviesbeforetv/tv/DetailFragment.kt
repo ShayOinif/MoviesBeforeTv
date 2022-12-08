@@ -14,6 +14,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
 import com.shayo.movies.Movie
+import com.shayo.movies.MovieManager
 import com.shayo.movies.MoviesRepository
 import com.shayo.movies.VideoRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,7 +27,7 @@ import javax.inject.Inject
 class DetailFragment : DetailsSupportFragment() {
 
     @Inject
-    lateinit var moviesRepository: MoviesRepository
+    lateinit var moviesManager: MovieManager
 
     @Inject
     lateinit var videoRepository: VideoRepository
@@ -99,7 +100,7 @@ class DetailFragment : DetailsSupportFragment() {
         )
 
         lifecycleScope.launch {
-            moviesRepository.favoritesMap.collectLatest {
+            moviesManager.favoritesMap.collectLatest {
 
                 watchListAction.label1 = if (it.containsKey(movie.id)) {
                     "Remove From Watchlist"
@@ -149,7 +150,7 @@ class DetailFragment : DetailsSupportFragment() {
 
                 1L -> {
                     lifecycleScope.launch {
-                        moviesRepository.toggleFavorite(movie)
+                        moviesManager.toggleFavorite(movie)
                     }
                 }
                 0L -> {

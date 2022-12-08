@@ -12,12 +12,17 @@ interface MovieManager {
 
     fun getFavoritesFlow(): Flow<List<Movie>>
 
+    fun setCollection(collectionName: String?)
+
+    suspend fun toggleFavorite(movie: Movie)
+
     fun getCategoryFlow(type: String, category: String, scope: CoroutineScope): Flow<PagingData<Movie>>
 }
 
 internal class MovieManagerImpl(
     private val moviesRepository: MoviesRepository,
     private val genreRepository: GenreRepository,
+    private val favoritesRepository: FavoritesRepository,
 ) : MovieManager {
 
     override fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>> {
@@ -41,17 +46,26 @@ internal class MovieManagerImpl(
         }.cachedIn(scope)
     }
 
-    override val favoritesMap = moviesRepository.favoritesMap
+    override val favoritesMap = favoritesRepository.favoritesMap
 
     override fun getFavoritesFlow(): Flow<List<Movie>> {
         return combine(
-            moviesRepository.getFavoritesFlow(),
+            favoritesRepository.favoritesMap,
             genreRepository.movieGenresFlow
-        ) { moviePagingData, genres ->
-            moviePagingData.map {
-                it.mapGenres(genres)
+        ) { favoritesMap, genres ->
+            favoritesMap.map { (id, type) ->
+                moviesRepository.getMovieById(id, type)!!
+                    .mapGenres(genres)
             }
         }
+    }
+
+    override fun setCollection(collectionName: String?) {
+        favoritesRepository.setCollection(collectionName)
+    }
+
+    override suspend fun toggleFavorite(movie: Movie) {
+        favoritesRepository.toggleFavorite(movie.id, movie.type)
     }
 
     override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope): Flow<PagingData<Movie>> {

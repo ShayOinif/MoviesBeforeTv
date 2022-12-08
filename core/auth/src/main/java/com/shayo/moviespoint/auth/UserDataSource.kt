@@ -1,25 +1,36 @@
 package com.shayo.moviespoint.auth
 
-import android.util.Log
-import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import android.net.Uri
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuth.AuthStateListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.shareIn
 
-class UserDataSource private constructor(){
+// TODO: DI
+class UserDataSource private constructor() {
 
-    private val _currentUserFlow = MutableStateFlow<User?>(null)
+    private val scope = CoroutineScope(SupervisorJob())
 
-    val currentUserFlow: StateFlow<User?> = _currentUserFlow
+    val currentUserFlow = callbackFlow {
+        val listener =
+            AuthStateListener {
+                // TODO: Handle the nullness of the email
+                trySend(it.currentUser?.run { AuthUser(displayName!!, email!!, photoUrl) })
+            }
 
-    internal fun updateUser(firebaseUser: FirebaseUser?) {
+        FirebaseAuth.getInstance().addAuthStateListener(listener)
 
-        Log.d("User", "${firebaseUser?.email}")
+        awaitClose {
+            FirebaseAuth.getInstance().removeAuthStateListener(listener)
+        }
+    }.shareIn(scope, SharingStarted.WhileSubscribed(1_500), 1)
 
-        _currentUserFlow.value = firebaseUser?.email?.let { User(it) }
-    }
-
-    fun logout() {
-        updateUser(null)
+    fun signOut() {
+        FirebaseAuth.getInstance().signOut()
     }
 
     companion object {
@@ -35,6 +46,8 @@ class UserDataSource private constructor(){
     }
 }
 
-data class User(
+data class AuthUser(
+    val displayName: String,
     val email: String,
+    val photoUrl: Uri?
 )

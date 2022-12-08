@@ -1,4 +1,4 @@
-package com.shayo.moviespoint.auth
+package com.shayo.moviesbeforetv.tv
 
 import android.app.Activity.RESULT_OK
 import android.os.Bundle
@@ -8,9 +8,8 @@ import androidx.navigation.fragment.findNavController
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
-import com.google.firebase.auth.FirebaseAuth
 
-class LoginFragment: Fragment() {
+class LoginFragment : Fragment() {
     private val signInLauncher = registerForActivityResult(
         FirebaseAuthUIActivityResultContract()
     ) { res ->
@@ -34,28 +33,11 @@ class LoginFragment: Fragment() {
     }
 
     private fun onSignInResult(result: FirebaseAuthUIAuthenticationResult) {
-        val response = result.idpResponse
 
+        findNavController().popBackStack()
 
-        Log.d("User", "Before: ${FirebaseAuth.getInstance().currentUser}")
-
-        if (result.resultCode == RESULT_OK) {
-
-
-
-            // Successfully signed in
-            UserDataSource.getUserDataSource().updateUser( FirebaseAuth.getInstance().currentUser)
-
-            findNavController().popBackStack()
-            // ...
-        } else {
-            // Sign in failed. If response is null the user canceled the
-            // sign-in flow using the back button. Otherwise check
-            // response.getError().getErrorCode() and handle the error.
-            // ...
-
-
-            Log.d("User", "${response?.error?.localizedMessage}")
+        if (result.resultCode != RESULT_OK) {
+            Log.d("User", "${result.idpResponse?.error?.localizedMessage}")
         }
     }
 }

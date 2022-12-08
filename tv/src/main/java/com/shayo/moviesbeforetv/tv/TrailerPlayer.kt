@@ -29,7 +29,7 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.You
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.shayo.movies.Movie
-import com.shayo.movies.MoviesRepository
+import com.shayo.movies.MovieManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -44,7 +44,7 @@ import javax.inject.Inject
 class TrailerPlayer : Fragment() {
 
     @Inject
-    lateinit var moviesRepository: MoviesRepository
+    lateinit var movieManager: MovieManager
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -72,7 +72,7 @@ class TrailerPlayer : Fragment() {
 
         controls.getFragment<VideoFragment>().setMovie(adapter, movie) {
             lifecycleScope.launch {
-                moviesRepository.toggleFavorite(movie)
+                movieManager.toggleFavorite(movie)
             }
         }
 
@@ -83,7 +83,7 @@ class TrailerPlayer : Fragment() {
         })
 
         lifecycleScope.launch {
-            moviesRepository.favoritesMap.collectLatest {
+            movieManager.favoritesMap.collectLatest {
                 controls.getFragment<VideoFragment>().updateIsFavorite(it.containsKey(movie.id))
             }
         }
@@ -182,6 +182,7 @@ class VideoFragment : PlaybackSupportFragment() {
         })
     }
 
+    // TODO: Move to utils, in use for user photo
     private suspend fun drawableFromUrl(url: String): Drawable {
         return withContext(Dispatchers.IO) {
             val x: Bitmap

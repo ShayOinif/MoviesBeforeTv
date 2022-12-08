@@ -11,6 +11,6 @@ import javax.inject.Singleton
 object FirestoreModule {
     @Provides
     @Singleton
-    fun provideMixedFavoritesDataSource(): MixedFavoritesDataSource =
-        MixedFavoritesDataSourceImpl()
+    fun provideMixedFavoritesDataSource(): FirestoreFavoritesDataSource =
+        FirestoreFavoritesDataSourceImpl()
 }

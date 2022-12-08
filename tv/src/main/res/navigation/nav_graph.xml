@@ -50,6 +50,6 @@
     </fragment>
     <fragment
         android:id="@+id/loginFragment"
-        android:name="com.shayo.moviespoint.auth.LoginFragment"
+        android:name="com.shayo.moviesbeforetv.tv.LoginFragment"
         android:label="LoginFragment" />
 </navigation>

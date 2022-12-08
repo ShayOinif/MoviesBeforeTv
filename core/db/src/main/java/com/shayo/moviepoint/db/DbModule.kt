@@ -35,4 +35,12 @@ object DbModule {
         context: Context,
     ): LocalGenresDataSource =
         LocalGenresDataSourceImpl(MovieDb.getDb(context).genresDao())
+
+    @Provides
+    @Singleton
+    fun provideLocalFavoritesDataSource(
+        @ApplicationContext
+        context: Context,
+    ): LocalFavoritesDataSource =
+        LocalFavoritesDataSourceImpl(MovieDb.getDb(context).favoritesDao())
 }

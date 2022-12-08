@@ -1,0 +1,121 @@
+{
+  "project_info": {
+    "project_number": "536718712755",
+    "project_id": "moviespoint-dc294",
+    "storage_bucket": "moviespoint-dc294.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536718712755:android:9cc979769b633edfb4f5c6",
+        "android_client_info": {
+          "package_name": "com.shayo.moviesbeforetv.tv"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "536718712755-cramqoplf3rt4gm86itug36noeg38hra.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shayo.moviesbeforetv.tv",
+            "certificate_hash": "5f28ada196a831f037998caa7655a36ca151e679"
+          }
+        },
+        {
+          "client_id": "536718712755-0k96otrjcrsi8o7opll6u864bdpkds72.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQT7tHaMziWUi6FY3vJ-DkgT5RqW73s0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536718712755-0k96otrjcrsi8o7opll6u864bdpkds72.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536718712755:android:d41b5dbdbddc03c8b4f5c6",
+        "android_client_info": {
+          "package_name": "com.shayo.moviespoint.auth"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "536718712755-qpvu0fn39er5n6eloiho11mgr0r4nv4m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shayo.moviespoint.auth",
+            "certificate_hash": "5f28ada196a831f037998caa7655a36ca151e679"
+          }
+        },
+        {
+          "client_id": "536718712755-0k96otrjcrsi8o7opll6u864bdpkds72.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQT7tHaMziWUi6FY3vJ-DkgT5RqW73s0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536718712755-0k96otrjcrsi8o7opll6u864bdpkds72.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536718712755:android:8e647676217126f6b4f5c6",
+        "android_client_info": {
+          "package_name": "com.shayo.moviespoint.firestore"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "536718712755-4mt4e2gd9l5puvu03oso7mkiuvjtseap.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shayo.moviespoint.firestore",
+            "certificate_hash": "5f28ada196a831f037998caa7655a36ca151e679"
+          }
+        },
+        {
+          "client_id": "536718712755-0k96otrjcrsi8o7opll6u864bdpkds72.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQT7tHaMziWUi6FY3vJ-DkgT5RqW73s0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536718712755-0k96otrjcrsi8o7opll6u864bdpkds72.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

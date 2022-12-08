@@ -1,12 +1,15 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.DisplayMetrics
-import android.util.Log
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -26,41 +29,26 @@ import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
-import com.shayo.moviespoint.auth.UserDataSource
+import com.shayo.movies.UserRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.*
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MyBrowseFragment : BrowseSupportFragment() {
-
-
-    private inner class GridItemPresenter : Presenter() {
-        override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
-            val view = TextView(parent.context)
-            view.layoutParams = ViewGroup.LayoutParams(500, 500)
-            view.isFocusable = true
-            view.isFocusableInTouchMode = true
-            view.setBackgroundColor(Color.BLUE)
-            view.setTextColor(Color.WHITE)
-            view.gravity = Gravity.CENTER
-            return ViewHolder(view)
-        }
-
-        override fun onBindViewHolder(viewHolder: ViewHolder, item: Any) {
-            (viewHolder.view as TextView).text = item as String
-        }
-
-        override fun onUnbindViewHolder(viewHolder: ViewHolder) {}
-    }
-
-
     @Inject
     lateinit var movieManager: MovieManager
 
+    @Inject
+    lateinit var userRepository: UserRepository
 
     override fun onResume() {
         super.onResume()
@@ -70,17 +58,6 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
-
-        // TODO:
-        lifecycleScope.launch {
-            UserDataSource.getUserDataSource().currentUserFlow.collectLatest {
-                Log.d("User", "$it")
-            }
-        }
-
-
 
         mBackgroundManager = BackgroundManager.getInstance(activity)
         mBackgroundManager.attach(requireActivity().window)
@@ -134,7 +111,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
         val gridHeader = HeaderItem( "Settings")
 
-        val mGridPresenter = GridItemPresenter()
+        val mGridPresenter = GridItemPresenter(mMetrics.widthPixels / 6)
         val gridRowAdapter = ArrayObjectAdapter(mGridPresenter)
         gridRowAdapter.add("Login")
 
@@ -203,12 +180,45 @@ class MyBrowseFragment : BrowseSupportFragment() {
             }
         }*/
 
+        lifecycleScope.launch {
+            // TODO: Maybe find another place to handle login logout in term of favorties
+            userRepository.currentAuthUserFlow.collectLatest { currentUser ->
+                currentUser?.run {
+                    movieManager.setCollection(email)
+
+                    gridRowAdapter.replace(0, "Logout")
+
+
+                    photoUrl?.let { photo ->
+                        badgeDrawable = drawableFromUrl(photo.toString())
+                    } ?: run { title = displayName }
+                } ?: run {
+                    movieManager.setCollection(null)
+
+                    gridRowAdapter.replace(0, "Login")
+
+                    badgeDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_baseline_person_24)
+                }
+            }
+        }
+
         setOnSearchClickedListener {
             findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
         }
 
         onItemViewSelectedListener = ItemViewSelectedListener()
         onItemViewClickedListener = ItemViewClickedListener()
+    }
+
+    private suspend fun drawableFromUrl(url: String): Drawable {
+        return withContext(Dispatchers.IO) {
+            val x: Bitmap
+            val connection: HttpURLConnection = URL(url).openConnection() as HttpURLConnection
+            connection.connect()
+            val input: InputStream = connection.inputStream
+            x = BitmapFactory.decodeStream(input)
+            BitmapDrawable(Resources.getSystem(), x)
+        }
     }
 
     private fun updateBackground(uri: String?) {
@@ -275,7 +285,10 @@ class MyBrowseFragment : BrowseSupportFragment() {
                     MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(item.movie)
                 findNavController().navigate(action)
             } else if (item is String) {
-                findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
+                if (item == "Login")
+                    findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
+                else
+                    userRepository.signOut()
             }
         }
     }
@@ -353,5 +366,23 @@ class CardPresenter(width: Int) : Presenter() {
         cardView.badgeImage = null
         cardView.mainImage = null
     }
+}
 
+private class GridItemPresenter(private val size: Int) : Presenter() {
+    override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
+        val view = TextView(parent.context)
+        view.layoutParams = ViewGroup.LayoutParams(size, size)
+        view.isFocusable = true
+        view.isFocusableInTouchMode = true
+        view.setBackgroundColor(Color.BLUE)
+        view.setTextColor(Color.WHITE)
+        view.gravity = Gravity.CENTER
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(viewHolder: ViewHolder, item: Any) {
+        (viewHolder.view as TextView).text = item as String
+    }
+
+    override fun onUnbindViewHolder(viewHolder: ViewHolder) {}
 }
