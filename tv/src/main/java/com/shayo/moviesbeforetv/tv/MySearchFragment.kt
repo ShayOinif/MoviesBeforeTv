@@ -1,23 +1,31 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import android.util.DisplayMetrics
+import androidx.leanback.app.BackgroundManager
 import androidx.leanback.app.SearchSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.paging.PagingData
-import androidx.paging.cachedIn
 import androidx.paging.map
 import androidx.recyclerview.widget.DiffUtil
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.SimpleTarget
+import com.bumptech.glide.request.transition.Transition
 import com.shayo.movies.MovieManager
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.*
 import javax.inject.Inject
+
+private const val QUERY_DELAY = 300L
 
 @AndroidEntryPoint
 class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResultProvider {
@@ -25,15 +33,26 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
     private val query = MutableStateFlow("")
 
+    private lateinit var mBackgroundManager: BackgroundManager
+    private lateinit var mMetrics: DisplayMetrics
+    private var mBackgroundTimer: Timer? = null
+    private var mBackgroundUri: String? = null
+    private val mHandler = Handler(Looper.myLooper()!!)
+
     @Inject
     lateinit var movieManager: MovieManager
 
+    @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        mBackgroundManager = BackgroundManager.getInstance(activity)
+        mMetrics = DisplayMetrics()
+        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
+
         setSearchResultProvider(this)
 
-
-        val cardPresenter = CardPresenter()
+        val cardPresenter = CardPresenter(mMetrics.widthPixels)
 
         val pagingAdapter: PagingDataAdapter<BrowseMovie> = PagingDataAdapter(cardPresenter,
             object : DiffUtil.ItemCallback<BrowseMovie>() {
@@ -63,13 +82,12 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
         lifecycleScope.launch {
             launch {
-                query.collectLatest { query ->
+                query.debounce(QUERY_DELAY).distinctUntilChanged().collectLatest { query ->
                     if (query == "") {
-                        Log.d("MyTag", "Empty")
                         pagingAdapter.submitData(PagingData.empty())
                     } else {
                         combine(
-                            movieManager.getSearchWithGenrePager(query).flow.cachedIn(lifecycleScope),
+                            movieManager.getSearchFlow(query, lifecycleScope),
                             movieManager.favoritesMap,
                         ) { page, favorites ->
                             page.map {
@@ -89,6 +107,13 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         setOnItemViewClickedListener { _, item, _, _ ->
             findNavController().navigate(MySearchFragmentDirections.actionMySearchFragmentToDetailFragment((item as BrowseMovie).movie))
         }
+
+        setOnItemViewSelectedListener { _, item, _, _ ->
+            if (item is BrowseMovie) {
+                mBackgroundUri = item.movie.backdropPath
+                startBackgroundTimer()
+            }
+        }
     }
 
     override fun getResultsAdapter(): ObjectAdapter {
@@ -101,11 +126,56 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         return true
     }
 
-    override fun onQueryTextSubmit(query: String): Boolean {
+    override fun onQueryTextSubmit(newQuery: String): Boolean {
+        query.value = newQuery
+
         return true
     }
 
-    companion object {
-        private val SEARCH_DELAY_MS = 300
+    // TODO: Also in browse, unite
+    private fun updateBackground(uri: String?) {
+        if (uri != null) {
+            val width = mMetrics.widthPixels
+            val height = mMetrics.heightPixels
+            Glide.with(requireActivity())
+                .load("https://image.tmdb.org/t/p/original/$uri")
+                .centerCrop()
+                .error(R.drawable.ic_baseline_movie_filter_24)
+                .into<SimpleTarget<Drawable>>(
+                    object : SimpleTarget<Drawable>(width, height) {
+                        override fun onResourceReady(
+                            drawable: Drawable,
+                            transition: Transition<in Drawable>?
+                        ) {
+                            mBackgroundManager.drawable = drawable
+                        }
+                    })
+        } else mBackgroundManager.drawable = null
+        mBackgroundTimer?.cancel()
+    }
+
+    private fun startBackgroundTimer() {
+        mBackgroundTimer?.cancel()
+        mBackgroundTimer = Timer()
+        mBackgroundTimer?.schedule(UpdateBackgroundTask(), 1000)
+    }
+
+    private inner class UpdateBackgroundTask : TimerTask() {
+
+        override fun run() {
+            mHandler.post { updateBackground(mBackgroundUri) }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        mBackgroundTimer?.cancel()
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        updateBackground(mBackgroundUri)
     }
 }

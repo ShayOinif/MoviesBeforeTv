@@ -39,6 +39,7 @@ dependencies {
 
     implementation project(':core:network')
     implementation project(':core:db')
+    implementation project(':core:firestore')
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)

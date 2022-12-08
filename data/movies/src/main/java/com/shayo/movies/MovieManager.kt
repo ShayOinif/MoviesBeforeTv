@@ -1,94 +1,82 @@
 package com.shayo.movies
 
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
-import androidx.paging.PagingData
-import androidx.paging.map
+import androidx.paging.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 
 interface MovieManager {
-    fun getMoviesWithGenrePager(category: String): Pager<Int, Movie>
+    fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>>
 
-    fun getSearchWithGenrePager(query: String): Pager<Int, Movie>
+    val favoritesMap: Flow<Map<Int, String>>
 
-    val favoritesMap: Flow<Map<Int, Int>>
+    fun getFavoritesFlow(): Flow<List<Movie>>
 
-    fun getFavoritesPager(): Flow<PagingData<Movie>>
+    fun getCategoryFlow(type: String, category: String, scope: CoroutineScope): Flow<PagingData<Movie>>
 }
 
 internal class MovieManagerImpl(
     private val moviesRepository: MoviesRepository,
     private val genreRepository: GenreRepository,
 ) : MovieManager {
-    override fun getMoviesWithGenrePager(category: String): Pager<Int, Movie> {
-        return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = true,
-                initialLoadSize = 20,
-                maxSize = 200,
-                jumpThreshold = 60,
-            ),
-            pagingSourceFactory = {
-                MovieWithGenrePagingSource(
-                    // TODO:
-                    {
-                        moviesRepository.loader(category, it)
-                    },
-                    {
-                        genreRepository.getMoviesGenres()
-                    }
-                )
-            }
-        )
-    }
 
-    override fun getSearchWithGenrePager(query: String): Pager<Int, Movie> {
-        return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = true,
-                initialLoadSize = 20,
-                maxSize = 200,
-                jumpThreshold = 60,
-            ),
-            pagingSourceFactory = {
-                MovieWithGenrePagingSource(
-                    // TODO:
-                    {
-                        moviesRepository.searchLoader(query, it)
-                    },
-                    {
-                        genreRepository.getMoviesGenres()
-                    }
+    override fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>> {
+        return combine(
+            Pager(
+                config = PagingConfig(
+                    pageSize = 20,
+                    initialLoadSize = 20,
+                    maxSize = 200,
                 )
+            ) {
+                MoviesPagingSource {
+                    moviesRepository.searchLoader(query, it)
+                }
+            }.flow.cachedIn(scope),
+            genreRepository.movieGenresFlow
+        ) { moviePagingData, genres ->
+            moviePagingData.map {
+                it.mapGenres(genres)
             }
-        )
+        }.cachedIn(scope)
     }
 
     override val favoritesMap = moviesRepository.favoritesMap
 
-    override fun getFavoritesPager(): Flow<PagingData<Movie>> {
-        return moviesRepository.getFavoritesPager()
-            .map {
-                it.map {
-                    val genres = genreRepository.getMoviesGenres()
-
-                    if (genres.isSuccess) {
-                        it.copy(
-                            genres = it.genres.map { genre ->
-                                // TODO: Solve in a simpler way
-
-                                val name = genres.getOrNull()?.get(genre.id)?.name
-
-                                name?.let {
-                                    genre.copy(name = name)
-                                } ?: genre
-                            })
-                    } else
-                        it
-                }
+    override fun getFavoritesFlow(): Flow<List<Movie>> {
+        return combine(
+            moviesRepository.getFavoritesFlow(),
+            genreRepository.movieGenresFlow
+        ) { moviePagingData, genres ->
+            moviePagingData.map {
+                it.mapGenres(genres)
             }
+        }
     }
+
+    override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope): Flow<PagingData<Movie>> {
+        return combine(
+            moviesRepository.getCategoryFlow(type, category).cachedIn(scope),
+            genreRepository.movieGenresFlow
+        ) { moviePagingData, genres ->
+            moviePagingData.map {
+                it.mapGenres(genres)
+            }
+        }.cachedIn(scope)
+    }
+
+    private fun Movie.mapGenres(genresMap: Map<Int, Genre>) =
+        copy(
+            genres = genres.map { genre ->
+
+                if (genre.name.isEmpty()) {
+                    val name = genresMap[genre.id]?.name
+
+                    name?.let {
+                        genre.copy(name = name)
+                    } ?: genre
+                } else {
+                    genre
+                }
+            })
 }

@@ -1,38 +1,52 @@
 package com.shayo.movies
 
+import com.shayo.moviepoint.db.DbGenre
+import com.shayo.moviepoint.db.LocalGenresDataSource
 import com.shayo.network.NetworkGenreDataSource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 // TODO: Move to another module
+// TODO: Handle tv shows genres
 interface GenreRepository {
-    suspend fun getMoviesGenres(): Result<Map<Int, Genre>>
+    val movieGenresFlow: Flow<Map<Int, Genre>>
 }
 
 internal class GenreRepositoryImpl constructor(
     private val networkGenreDataSource: NetworkGenreDataSource,
+    private val localGenresDataSource: LocalGenresDataSource,
 ) : GenreRepository {
-    override suspend fun getMoviesGenres(): Result<Map<Int, Genre>> {
 
-        return if (genres != null && genres!!.isSuccess) {
-            genres!!
-        } else {
-            networkGenreDataSource.getMoviesGenres()
-                .map { networkGenres ->
-                    networkGenres.map { networkGenre ->
-                        Genre(
-                            networkGenre.id,
-                            networkGenre.name
+    private var didTry = false
+
+    override val movieGenresFlow = localGenresDataSource.genresFlow
+        .onEach {
+            if (it.isEmpty() && !didTry) {
+                didTry = true
+
+                networkGenreDataSource.getMoviesGenres()
+                    .map { networkGenres ->
+                        localGenresDataSource.addGenres(
+                            networkGenres.map { networkGenre ->
+                                DbGenre(
+                                    networkGenre.id,
+                                    networkGenre.name,
+                                )
+                            }
                         )
-                    }.associateBy {
-                        it.id
                     }
-                }.also { newResult ->
-                    genres = newResult
-                }
+            }
         }
-    }
+        .map { dbGenres ->
 
-    companion object {
-        // TODO:
-        private var genres: Result<Map<Int, Genre>>? = null
-    }
+            dbGenres.map { dbGenre ->
+                Genre(
+                    dbGenre.id,
+                    dbGenre.name
+                )
+            }.associateBy {
+                it.id
+            }
+        }
 }

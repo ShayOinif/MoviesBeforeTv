@@ -14,6 +14,9 @@
         <action
             android:id="@+id/action_myBrowseFragment_to_mySearchFragment"
             app:destination="@id/mySearchFragment" />
+        <action
+            android:id="@+id/action_myBrowseFragment_to_loginFragment"
+            app:destination="@id/loginFragment" />
     </fragment>
     <fragment
         android:id="@+id/detailFragment"
@@ -45,4 +48,8 @@
             android:id="@+id/action_mySearchFragment_to_detailFragment"
             app:destination="@id/detailFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.shayo.moviespoint.auth.LoginFragment"
+        android:label="LoginFragment" />
 </navigation>

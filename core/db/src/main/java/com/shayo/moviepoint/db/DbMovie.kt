@@ -15,4 +15,6 @@ data class DbMovie(
     val voteAverage: Double,
     // TODO:
     val genreIds: String,
+    val type: String,
+    val timeStamp: Long,
 )

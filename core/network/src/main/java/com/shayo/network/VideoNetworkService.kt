@@ -5,8 +5,10 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface VideoNetworkService {
-    @GET("movie/{movie_id}/videos")
+    @GET("{type}/{movie_id}/videos")
     suspend fun getMoviesGenres(
+        @Path("type")
+        type: String,
         @Path("movie_id")
         movieId: Int,
         @Query("api_key")

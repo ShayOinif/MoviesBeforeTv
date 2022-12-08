@@ -1,5 +1,6 @@
 package com.shayo.network
 
+import android.util.Log
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import java.io.IOException
@@ -11,12 +12,16 @@ interface NetworkGenreDataSource {
 internal class NetworkGenreDataSourceImpl constructor(
     private val genreNetworkService: GenreNetworkService
 ) : NetworkGenreDataSource {
-
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun getMoviesGenres(): Result<List<NetworkGenre>>{
         return try {
-            Result.success(genreNetworkService.getMoviesGenres().genres)
+            Log.d("MyTag", "Getting network genres")
+
+            val movies = genreNetworkService.getMoviesGenres("movie").genres
+            val shows = genreNetworkService.getMoviesGenres("tv").genres
+
+            Result.success(movies.plus(shows))
         } catch (ioException: IOException) {
             Result.failure(Exception("No Connection"))
         } catch (httpException: HttpException) {

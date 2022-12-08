@@ -20,17 +20,16 @@ internal open class MoviesPagingSource(
 
         return result.fold(
             onSuccess = { response ->
-                val before = (nextPageNumber - 1) * 20
-                val after = response.totalResults - before + 20
-
                 LoadResult.Page(
-                    data = response.results.map { networkMovie ->
-                        networkMovie.mapToMovie()
+                    data = response.results
+                        .filter {
+                            it.movieType == "tv" || it.movieType == "movie"
+                        }
+                        .map { networkMovie ->
+                        networkMovie.mapToMovie(networkMovie.movieType!!)
                     },
                     prevKey = if (nextPageNumber == 1) null else nextPageNumber - 1,
                     nextKey = if (nextPageNumber == response.totalPages) null else nextPageNumber + 1,
-                    itemsBefore = before,
-                    itemsAfter = after,
                     )
             },
             onFailure = {

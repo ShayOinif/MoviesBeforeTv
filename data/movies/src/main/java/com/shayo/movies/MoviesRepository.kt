@@ -1,127 +1,214 @@
 package com.shayo.movies
 
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
-import androidx.paging.PagingData
-import androidx.paging.map
-import com.shayo.moviepoint.db.DbMovie
-import com.shayo.moviepoint.db.LocalFavoritesDataSource
+import android.annotation.SuppressLint
+import androidx.paging.*
+import com.shayo.moviepoint.db.*
+import com.shayo.moviespoint.firestore.MixedFavoritesDataSourceImpl
 import com.shayo.network.MovieNetworkResponse
 import com.shayo.network.NetworkMovieDataSource
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import java.text.SimpleDateFormat
 
 interface MoviesRepository {
-    suspend fun getMovies(category: String): Result<List<Movie>>
-
-    fun getMoviesPager(category: String): Pager<Int, Movie>
-
-    suspend fun loader(category: String, page: Int): Result<MovieNetworkResponse>
-
-    fun getSearchPager(query: String): Pager<Int, Movie>
-
     suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse>
 
     suspend fun toggleFavorite(movie: Movie)
 
-    val favoritesMap: Flow<Map<Int, Int>>
+    val favoritesMap: Flow<Map<Int, String>>
 
-    fun getFavoritesPager(): Flow<PagingData<Movie>>
+    fun getFavoritesFlow(): Flow<List<Movie>>
+
+    fun getCategoryFlow(type: String, category: String): Flow<PagingData<Movie>>
 }
 
 internal class MoviesRepositoryImpl constructor(
     private val networkMovieDataSource: NetworkMovieDataSource,
-    private val localFavoritesDataSource: LocalFavoritesDataSource,
+    private val localMovieCategoryDataSource: LocalMovieCategoryDataSource,
+    private val localMoviesDataSource: LocalMoviesDataSource,
 ) : MoviesRepository {
-    override suspend fun getMovies(category: String): Result<List<Movie>> {
-        return networkMovieDataSource.getMovies(category)
-            .map { response ->
-                response.results.map { networkMovie ->
-                    networkMovie.mapToMovie()
-                }
-            }
-    }
 
-    override fun getMoviesPager(category: String): Pager<Int, Movie> {
-        return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = true,
-                initialLoadSize = 20,
-                maxSize = 200,
-                jumpThreshold = 60,
-            ),
-            pagingSourceFactory = {
-                MoviesPagingSource { page ->
-                    networkMovieDataSource.getMovies(category, page)
-                }
-            }
-        )
-    }
+    // TODO: Get in di
+    @SuppressLint("SimpleDateFormat")
+    private val formatter = SimpleDateFormat("yyyyMMdd")
 
-    override suspend fun loader(category: String, page: Int) =
-        networkMovieDataSource.getMovies(category, page)
 
-    override fun getSearchPager(query: String): Pager<Int, Movie> {
-        return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = true,
-                initialLoadSize = 20,
-                maxSize = 200,
-                jumpThreshold = 60,
-            ),
-            pagingSourceFactory = {
-                MoviesPagingSource { page ->
-                    networkMovieDataSource.searchMovies(query, page)
-                }
-            }
-        )
-    }
+    // TODO: Get in DI
+    private val mixedFavoritesDataSource = MixedFavoritesDataSourceImpl()
 
     override suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse> {
         return networkMovieDataSource.searchMovies(query, page)
     }
 
     override suspend fun toggleFavorite(movie: Movie) {
-        localFavoritesDataSource.toggleFavorite(
-            with(movie) {
-                DbMovie(
-                    id, title, posterPath, backdropPath,
-                    overview,
-                    releaseDate,
-                    voteAverage,
-                    genres.joinToString(separator = ",") {
-                        it.id.toString()
-                    },
-                )
-            }
-        )
+        mixedFavoritesDataSource.toggleFavorite(movie.id, movie.type)
     }
 
-    override val favoritesMap = localFavoritesDataSource.favoritesMapFlow
+    override val favoritesMap = mixedFavoritesDataSource.favoritesMapFlow
 
-    // TODO: return flow in other pagers
-    override fun getFavoritesPager(): Flow<PagingData<Movie>> {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getFavoritesFlow() = mixedFavoritesDataSource.favoritesMapFlow
+        .mapLatest { favs ->
+            favs.map { (id, type) ->
+                localMoviesDataSource.getMovieById(id)?.let {
+
+
+                    if (formatter.formatToInt(System.currentTimeMillis()) -
+                        formatter.formatToInt(it.timeStamp) > 0) // TODO:)
+                    {
+                        networkMovieDataSource.getById(type, id)
+                            .fold(
+                                onSuccess = {
+                                    with(it) {
+
+                                        localMoviesDataSource.addMovie(
+                                            DbMovie(
+                                                id,
+                                                title,
+                                                posterPath,
+                                                backdropPath,
+                                                overview,
+                                                releaseDate,
+                                                voteAverage,
+                                                genres.joinToString(",") { "${it.id}" },
+                                                type,
+                                                System.currentTimeMillis()
+                                            )
+                                        )
+
+                                        Movie(
+                                            id,
+                                            title,
+                                            posterPath,
+                                            backdropPath,
+                                            overview,
+                                            releaseDate,
+                                            voteAverage,
+                                            genres.map {
+                                                Genre(it.id, it.name)
+                                            },
+                                            type,
+                                        )
+                                    }
+                                },
+                                onFailure = {
+                                    throw it // TODO:
+                                }
+                            )
+                    } else {
+                        with(it) {
+                            val genres = genreIds.split(",").let {
+                                if (it.first().isEmpty()) {
+                                    emptyList()
+                                } else {
+                                    it.map { Genre(it.toInt(), "") }
+                                }
+                            }
+
+                            Movie(
+                                id,
+                                title,
+                                posterPath,
+                                backdropPath,
+                                overview,
+                                releaseDate,
+                                voteAverage,
+                                genres,
+                                type,
+                            )
+                        }
+                    }
+                } ?: networkMovieDataSource.getById(type, id)
+                    .fold(
+                        onSuccess = {
+                            with(it) {
+
+                                localMoviesDataSource.addMovie(
+                                    DbMovie(
+                                        id,
+                                        title,
+                                        posterPath,
+                                        backdropPath,
+                                        overview,
+                                        releaseDate,
+                                        voteAverage,
+                                        genres.joinToString(",") { "${it.id}" },
+                                        type,
+                                        System.currentTimeMillis()
+                                    )
+                                )
+
+                                Movie(
+                                    id,
+                                    title,
+                                    posterPath,
+                                    backdropPath,
+                                    overview,
+                                    releaseDate,
+                                    voteAverage,
+                                    genres.map {
+                                        Genre(it.id, it.name)
+                                    },
+                                    type,
+                                )
+                            }
+                        },
+                        onFailure = {
+                            throw it // TODO:
+                        }
+                    )
+            }
+        }
+
+    @OptIn(ExperimentalPagingApi::class)
+    override fun getCategoryFlow(type: String, category: String): Flow<PagingData<Movie>> {
         return Pager(
             config = PagingConfig(
                 pageSize = 20,
-                enablePlaceholders = true,
                 initialLoadSize = 20,
                 maxSize = 200,
-                jumpThreshold = 60,
             ),
             pagingSourceFactory = {
-                localFavoritesDataSource.getFavoritesPaging()
-            }
+                localMovieCategoryDataSource.getCategoryPaging(type, category)
+            },
+            remoteMediator = CategoryMediator(
+                type,
+                category,
+                networkMovieDataSource::getMovies,
+                localMoviesDataSource,
+                localMovieCategoryDataSource,
+            )
         ).flow.map {
             it.map {
-                with (it) {
-                    Movie(
-                        id, title, posterPath, backdropPath, overview, releaseDate, voteAverage, genreIds.split(",").map { Genre(it.toInt(), "") }
-                    )
+                with(localMoviesDataSource.getMovieById(it.id)) {
+                    this?.let {
+                        val genres = genreIds.split(",").let {
+                            if (it.first().isEmpty()) {
+                                emptyList<Genre>()
+                            } else {
+                                it.map { Genre(it.toInt(), "") }
+                            }
+                        }
+
+                        Movie(
+                            id,
+                            title,
+                            posterPath,
+                            backdropPath,
+                            overview,
+                            releaseDate,
+                            voteAverage,
+                            genres,
+                            type,
+                        )
+                    } ?: throw Exception("Unknown Error") // TODO:
                 }
             }
         }
     }
 }
+
+private fun SimpleDateFormat.formatToInt(time: Long) =
+    format(time).toInt()

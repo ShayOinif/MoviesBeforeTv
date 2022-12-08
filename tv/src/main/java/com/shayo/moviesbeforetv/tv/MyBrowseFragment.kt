@@ -1,23 +1,24 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.DisplayMetrics
+import android.util.Log
+import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.leanback.app.BackgroundManager
 import androidx.leanback.app.BrowseSupportFragment
-import androidx.leanback.app.ErrorSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
 import androidx.leanback.widget.ObjectAdapter.DataObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import androidx.paging.LoadState
-import androidx.paging.cachedIn
 import androidx.paging.map
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
@@ -25,6 +26,7 @@ import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
+import com.shayo.moviespoint.auth.UserDataSource
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -35,127 +37,125 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MyBrowseFragment : BrowseSupportFragment() {
 
+
+    private inner class GridItemPresenter : Presenter() {
+        override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
+            val view = TextView(parent.context)
+            view.layoutParams = ViewGroup.LayoutParams(500, 500)
+            view.isFocusable = true
+            view.isFocusableInTouchMode = true
+            view.setBackgroundColor(Color.BLUE)
+            view.setTextColor(Color.WHITE)
+            view.gravity = Gravity.CENTER
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(viewHolder: ViewHolder, item: Any) {
+            (viewHolder.view as TextView).text = item as String
+        }
+
+        override fun onUnbindViewHolder(viewHolder: ViewHolder) {}
+    }
+
+
     @Inject
     lateinit var movieManager: MovieManager
 
+
+    override fun onResume() {
+        super.onResume()
+
+        updateBackground(mBackgroundUri)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+
+        // TODO:
+        lifecycleScope.launch {
+            UserDataSource.getUserDataSource().currentUserFlow.collectLatest {
+                Log.d("User", "$it")
+            }
+        }
+
+
 
         mBackgroundManager = BackgroundManager.getInstance(activity)
         mBackgroundManager.attach(requireActivity().window)
         mMetrics = DisplayMetrics()
         requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
 
-        title = "My Movies!!!"
-
-        badgeDrawable = ContextCompat.getDrawable(requireContext(), R.mipmap.ic_banner)
-
         brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
+        searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
 
         headersState = HEADERS_ENABLED
 
         isHeadersTransitionOnBackEnabled = true
 
         val rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
-        val cardPresenter = CardPresenter()
+        val cardPresenter = CardPresenter(mMetrics.widthPixels)
 
-        val pagingAdapter: PagingDataAdapter<BrowseMovie> = PagingDataAdapter(cardPresenter,
-            object : DiffUtil.ItemCallback<BrowseMovie>() {
-                override fun areItemsTheSame(
-                    oldItem: BrowseMovie,
-                    newItem: BrowseMovie
-                ): Boolean {
-                    return oldItem.movie.id === newItem.movie.id
+        val movieDiff = MovieDiff()
+
+        // TODO:
+        listOf(
+            Triple("Popular Movies", "movie","popular"),
+            Triple("Upcoming Movies","movie", "upcoming"),
+            Triple("Popular Tv Shows","tv", "popular"),
+            Triple("Top Rated Tv Shows","tv", "top_rated"),
+        ).forEach { (header, type, category) ->
+            val pagingAdapter = PagingDataAdapter(cardPresenter, movieDiff)
+
+            rowsAdapter.add(
+                ListRow(
+                    HeaderItem(header),
+                    pagingAdapter
+                )
+            )
+
+            lifecycleScope.launch {
+                combine(
+                    movieManager.getCategoryFlow(type = type, category = category, scope = lifecycleScope),
+                    movieManager.favoritesMap
+                ) { page, favorites ->
+                    page.map {
+                        BrowseMovie(
+                            it,
+                            favorites.containsKey(it.id)
+                        )
+                    }
+                }.collectLatest {
+                    pagingAdapter.submitData(it)
                 }
+            }
+        }
 
-                override fun areContentsTheSame(
-                    oldItem: BrowseMovie,
-                    newItem: BrowseMovie
-                ): Boolean {
-                    return oldItem.movie.title == newItem.movie.title &&
-                            oldItem.movie.posterPath == newItem.movie.posterPath &&
-                            oldItem.movie.backdropPath == newItem.movie.backdropPath &&
-                            oldItem.movie.overview == newItem.movie.overview &&
-                            oldItem.movie.releaseDate == newItem.movie.releaseDate &&
-                            oldItem.isFavorite == newItem.isFavorite
-                }
-            })
+        val gridHeader = HeaderItem( "Settings")
+
+        val mGridPresenter = GridItemPresenter()
+        val gridRowAdapter = ArrayObjectAdapter(mGridPresenter)
+        gridRowAdapter.add("Login")
+
+        rowsAdapter.add(ListRow(gridHeader, gridRowAdapter))
 
 
-        val header = HeaderItem("Popular Movies")
-
-        rowsAdapter.add(ListRow(header, pagingAdapter))
-
-        val pagingAdapter2: PagingDataAdapter<BrowseMovie> = PagingDataAdapter(cardPresenter,
-            object : DiffUtil.ItemCallback<BrowseMovie>() {
-                override fun areItemsTheSame(
-                    oldItem: BrowseMovie,
-                    newItem: BrowseMovie
-                ): Boolean {
-                    return oldItem.movie.id === newItem.movie.id
-                }
-
-                override fun areContentsTheSame(
-                    oldItem: BrowseMovie,
-                    newItem: BrowseMovie
-                ): Boolean {
-                    return oldItem.movie.title == newItem.movie.title &&
-                            oldItem.movie.posterPath == newItem.movie.posterPath &&
-                            oldItem.movie.backdropPath == newItem.movie.backdropPath &&
-                            oldItem.movie.overview == newItem.movie.overview &&
-                            oldItem.movie.releaseDate == newItem.movie.releaseDate &&
-                            oldItem.isFavorite == newItem.isFavorite
-                }
-            })
-
-
-        val pagingAdapter3: PagingDataAdapter<BrowseMovie> = PagingDataAdapter(cardPresenter,
-            object : DiffUtil.ItemCallback<BrowseMovie>() {
-                override fun areItemsTheSame(
-                    oldItem: BrowseMovie,
-                    newItem: BrowseMovie
-                ): Boolean {
-                    return oldItem.movie.id === newItem.movie.id
-                }
-
-                override fun areContentsTheSame(
-                    oldItem: BrowseMovie,
-                    newItem: BrowseMovie
-                ): Boolean {
-                    return oldItem.movie.title == newItem.movie.title &&
-                            oldItem.movie.posterPath == newItem.movie.posterPath &&
-                            oldItem.movie.backdropPath == newItem.movie.backdropPath &&
-                            oldItem.movie.overview == newItem.movie.overview &&
-                            oldItem.movie.releaseDate == newItem.movie.releaseDate &&
-                            oldItem.isFavorite == newItem.isFavorite
-                }
-            })
-
-
-        val header2 = HeaderItem("Upcoming Movies")
+        val pagingAdapter3 = ArrayObjectAdapter(cardPresenter)
 
         val header3 = HeaderItem("Favorites")
 
-        rowsAdapter.add(ListRow(header2, pagingAdapter2))
-
-        //rowsAdapter.add(ListRow(header3, pagingAdapter3))
-
         adapter = rowsAdapter
-
-
-        val pager = movieManager.getMoviesWithGenrePager("popular")
-        val pager2 = movieManager.getMoviesWithGenrePager("upcoming")
-        val favorites = movieManager.getFavoritesPager().cachedIn(lifecycleScope)
 
         pagingAdapter3.registerObserver(
             object : DataObserver() {
                 override fun onChanged() {
                     if (pagingAdapter3.size() == 0) {
-                        rowsAdapter.removeItems(2, 1)
+                        rowsAdapter.removeItems(5, 1)
 
                         adapter = rowsAdapter
                     } else {
-                        if (rowsAdapter.size() == 2) {
+                        if (rowsAdapter.size() == 5) {
                             rowsAdapter.add(ListRow(header3, pagingAdapter3))
 
                             adapter = rowsAdapter
@@ -167,45 +167,21 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
         lifecycleScope.launch {
             launch {
-                combine(pager.flow.cachedIn(lifecycleScope), movieManager.favoritesMap) { page, favorites ->
-                    page.map {
-                        BrowseMovie(
-                            it,
-                            favorites.containsKey(it.id)
-                        )
-                    }
-                }.collectLatest {
-                    pagingAdapter.submitData(it)
-                }
-            }
-
-            launch {
-                combine(pager2.flow.cachedIn(lifecycleScope), movieManager.favoritesMap) { page, favorites ->
-                    page.map {
-                        BrowseMovie(
-                            it,
-                            favorites.containsKey(it.id)
-                        )
-                    }
-                }.collectLatest {
-                    pagingAdapter2.submitData(it)
-                }
-            }
-
-            launch {
-                favorites.collectLatest {
-
+                movieManager.getFavoritesFlow().collectLatest {
                     val data = it.map {
-
                         BrowseMovie(it, true)
                     }
 
-                    pagingAdapter3.submitData(data)
+                    pagingAdapter3.clear()
+
+                    data.forEach {
+                        pagingAdapter3.add(it)
+                    }
                 }
             }
         }
 
-        pagingAdapter2.addLoadStateListener { state ->
+        /*pagingAdapter2.addLoadStateListener { state ->
             if (state.refresh is LoadState.Error) {
                 val mErrorFragment = ErrorSupportFragment()
 
@@ -225,7 +201,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
                     pagingAdapter2.refresh()
                 }
             }
-        }
+        }*/
 
         setOnSearchClickedListener {
             findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
@@ -234,7 +210,6 @@ class MyBrowseFragment : BrowseSupportFragment() {
         onItemViewSelectedListener = ItemViewSelectedListener()
         onItemViewClickedListener = ItemViewClickedListener()
     }
-
 
     private fun updateBackground(uri: String?) {
         if (uri != null) {
@@ -295,10 +270,35 @@ class MyBrowseFragment : BrowseSupportFragment() {
             rowViewHolder: RowPresenter.ViewHolder?,
             row: Row?
         ) {
-            val action =
-                MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment((item as BrowseMovie).movie)
-            findNavController().navigate(action)
+            if (item is BrowseMovie) {
+                val action =
+                    MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(item.movie)
+                findNavController().navigate(action)
+            } else if (item is String) {
+                findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
+            }
         }
+    }
+}
+
+private class MovieDiff : DiffUtil.ItemCallback<BrowseMovie>() {
+    override fun areItemsTheSame(
+        oldItem: BrowseMovie,
+        newItem: BrowseMovie
+    ): Boolean {
+        return oldItem.movie.id === newItem.movie.id
+    }
+
+    override fun areContentsTheSame(
+        oldItem: BrowseMovie,
+        newItem: BrowseMovie
+    ): Boolean {
+        return oldItem.movie.title == newItem.movie.title &&
+                oldItem.movie.posterPath == newItem.movie.posterPath &&
+                oldItem.movie.backdropPath == newItem.movie.backdropPath &&
+                oldItem.movie.overview == newItem.movie.overview &&
+                oldItem.movie.releaseDate == newItem.movie.releaseDate &&
+                oldItem.isFavorite == newItem.isFavorite
     }
 }
 
@@ -307,7 +307,10 @@ data class BrowseMovie(
     val isFavorite: Boolean = false,
 )
 
-class CardPresenter : Presenter() {
+class CardPresenter(width: Int) : Presenter() {
+
+    private val width: Int = width / 6
+
     override fun onCreateViewHolder(parent: ViewGroup?): ViewHolder {
 
         val cardView = ImageCardView(parent?.context)
@@ -324,7 +327,7 @@ class CardPresenter : Presenter() {
             val cardView = viewHolder?.view as ImageCardView
 
             cardView.titleText = browseMovie.movie.title
-            cardView.setMainImageDimensions(200, 300) // TODO:
+            cardView.setMainImageDimensions(width, width * 3 / 2)
             cardView.setMainImageScaleType(ImageView.ScaleType.CENTER)
 
             cardView.contentText =

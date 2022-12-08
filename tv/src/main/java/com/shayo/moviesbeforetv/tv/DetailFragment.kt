@@ -2,7 +2,9 @@ package com.shayo.moviesbeforetv.tv
 
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.util.DisplayMetrics
 import androidx.core.content.ContextCompat
+import androidx.leanback.app.BackgroundManager
 import androidx.leanback.app.DetailsSupportFragment
 import androidx.leanback.widget.*
 import androidx.lifecycle.lifecycleScope
@@ -17,6 +19,7 @@ import com.shayo.movies.VideoRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.*
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -30,10 +33,21 @@ class DetailFragment : DetailsSupportFragment() {
 
     private var trailer: String? = null
 
+    private lateinit var mBackgroundManager: BackgroundManager
+    private lateinit var mMetrics: DisplayMetrics
+    private var mBackgroundTimer: Timer? = null
+    private var mBackgroundUri: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        mBackgroundManager = BackgroundManager.getInstance(activity)
+        mMetrics = DisplayMetrics()
+        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
+
         val movie = navArgs<DetailFragmentArgs>().value.movie
+
+        mBackgroundUri = movie.backdropPath
 
         val mPresenterSelector = ClassPresenterSelector()
 
@@ -59,7 +73,7 @@ class DetailFragment : DetailsSupportFragment() {
 
         lifecycleScope.launch {
 
-            videoRepository.getTrailer(movie.id).onSuccess {
+            videoRepository.getTrailer(movie.type, movie.id).onSuccess {
                 it?.apply {
                     trailer = it.key
 
@@ -149,6 +163,34 @@ class DetailFragment : DetailsSupportFragment() {
             }
         }
     }
+
+    private fun updateBackground(uri: String?) {
+        if (uri != null) {
+
+            val width = mMetrics.widthPixels
+            val height = mMetrics.heightPixels
+            Glide.with(requireActivity())
+                .load("https://image.tmdb.org/t/p/original/$uri")
+                .centerCrop()
+                .error(R.drawable.ic_baseline_movie_filter_24)
+                .into<SimpleTarget<Drawable>>(
+                    object : SimpleTarget<Drawable>(width, height) {
+                        override fun onResourceReady(
+                            drawable: Drawable,
+                            transition: Transition<in Drawable>?
+                        ) {
+                            mBackgroundManager.drawable = drawable
+                        }
+                    })
+        } else mBackgroundManager.drawable = null
+        mBackgroundTimer?.cancel()
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        updateBackground(mBackgroundUri)
+    }
 }
 
 class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
@@ -160,7 +202,14 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
         val movie = item as Movie
 
         viewHolder.title.text = movie.title
-        viewHolder.subtitle.text = movie.releaseDate
-        viewHolder.body.text = "${movie.genres.joinToString(" - ") { it.name }}\n${movie.overview}"
+
+        viewHolder.subtitle.maxLines = 3
+
+        viewHolder.subtitle.text = "${movie.releaseDate}\n${movie.voteAverage}/10\n" +
+                "${movie.genres.joinToString(" - ") { it.name }}"
+
+
+
+        viewHolder.body.text = movie.overview
     }
 }

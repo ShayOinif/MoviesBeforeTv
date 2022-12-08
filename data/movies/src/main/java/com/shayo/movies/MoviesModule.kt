@@ -1,6 +1,8 @@
 package com.shayo.movies
 
-import com.shayo.moviepoint.db.LocalFavoritesDataSource
+import com.shayo.moviepoint.db.LocalGenresDataSource
+import com.shayo.moviepoint.db.LocalMovieCategoryDataSource
+import com.shayo.moviepoint.db.LocalMoviesDataSource
 import com.shayo.network.NetworkGenreDataSource
 import com.shayo.network.NetworkMovieDataSource
 import com.shayo.network.NetworkVideoDataSource
@@ -16,13 +18,14 @@ object MoviesModule {
     @Provides
     fun provideMoviesRepository(
         networkMovieDataSource: NetworkMovieDataSource,
-        localFavoritesDataSource: LocalFavoritesDataSource,
+        localMovieCategoryDataSource: LocalMovieCategoryDataSource,
+        localMoviesDataSource: LocalMoviesDataSource,
     ): MoviesRepository =
-        MoviesRepositoryImpl(networkMovieDataSource, localFavoritesDataSource)
+        MoviesRepositoryImpl(networkMovieDataSource, localMovieCategoryDataSource, localMoviesDataSource)
 
     @Provides
-    fun provideGenresRepository(networkGenreDataSource: NetworkGenreDataSource): GenreRepository =
-        GenreRepositoryImpl(networkGenreDataSource)
+    fun provideGenresRepository(networkGenreDataSource: NetworkGenreDataSource, localGenresDataSource: LocalGenresDataSource): GenreRepository =
+        GenreRepositoryImpl(networkGenreDataSource, localGenresDataSource)
 
     @Provides
     fun provideMovieManager(

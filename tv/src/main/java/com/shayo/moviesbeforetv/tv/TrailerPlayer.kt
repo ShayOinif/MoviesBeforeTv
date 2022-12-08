@@ -1,5 +1,6 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.content.Context
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -16,7 +17,9 @@ import androidx.leanback.app.PlaybackSupportFragmentGlueHost
 import androidx.leanback.media.PlaybackGlue
 import androidx.leanback.media.PlaybackTransportControlGlue
 import androidx.leanback.media.PlayerAdapter
-import androidx.leanback.widget.PlaybackSeekDataProvider
+import androidx.leanback.widget.*
+import androidx.leanback.widget.PlaybackControlsRow.ThumbsAction.INDEX_OUTLINE
+import androidx.leanback.widget.PlaybackControlsRow.ThumbsAction.INDEX_SOLID
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
@@ -26,14 +29,23 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.You
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.shayo.movies.Movie
+import com.shayo.movies.MoviesRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class TrailerPlayer : Fragment() {
+
+    @Inject
+    lateinit var moviesRepository: MoviesRepository
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -47,6 +59,8 @@ class TrailerPlayer : Fragment() {
 
         val player = view.findViewById<YouTubePlayerView>(R.id.youtube_player_view)
 
+        viewLifecycleOwner.lifecycle.addObserver(player)
+
         val videoId = navArgs<TrailerPlayerArgs>().value.youtubeId // TODO:
         val movie = navArgs<TrailerPlayerArgs>().value.movie
 
@@ -56,41 +70,113 @@ class TrailerPlayer : Fragment() {
 
         val controls = view.findViewById<FragmentContainerView>(R.id.controls)
 
-        controls.getFragment<VideoFragment>().setMovie(adapter, movie)
+        controls.getFragment<VideoFragment>().setMovie(adapter, movie) {
+            lifecycleScope.launch {
+                moviesRepository.toggleFavorite(movie)
+            }
+        }
 
         player.getYouTubePlayerWhenReady(object : YouTubePlayerCallback {
             override fun onYouTubePlayer(youTubePlayer: YouTubePlayer) {
                 player.visibility = View.VISIBLE
             }
         })
+
+        lifecycleScope.launch {
+            moviesRepository.favoritesMap.collectLatest {
+                controls.getFragment<VideoFragment>().updateIsFavorite(it.containsKey(movie.id))
+            }
+        }
+    }
+}
+
+class MyCustomDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
+    override fun onBindDescription(vh: ViewHolder?, item: Any?) {
+        vh?.subtitle?.maxLines = 10
+
+        if (item is MyGlue<*>) {
+            vh?.title?.text = item.title
+            vh?.subtitle?.text = item.subtitle
+        }
+    }
+}
+
+private class MyGlue<T: PlayerAdapter>(
+    context: Context?,
+    impl: T,
+    private val watchlistCallback: () -> Unit
+) : PlaybackTransportControlGlue<T>(context,impl) {
+    private val thumbsUpAction = PlaybackControlsRow.ThumbsUpAction(context)
+
+    override fun onCreateRowPresenter(): PlaybackRowPresenter {
+        return super.onCreateRowPresenter().apply {
+            (this as? PlaybackTransportRowPresenter)
+                ?.setDescriptionPresenter(MyCustomDescriptionPresenter())
+        }
+    }
+
+    override fun onCreatePrimaryActions(primaryActionsAdapter: ArrayObjectAdapter) {
+        // Order matters, super.onCreatePrimaryActions() will create the play / pause action.
+        // Will display as follows:
+        // play/pause, previous, rewind, fast forward, next
+        //   > /||      |<        <<        >>         >|
+        super.onCreatePrimaryActions(primaryActionsAdapter)
+        primaryActionsAdapter.apply {
+            add(thumbsUpAction)
+        }
+    }
+
+    override fun onActionClicked(action: Action) {
+        when(action) {
+            thumbsUpAction -> {
+                watchlistCallback()
+            }
+            else -> super.onActionClicked(action)
+        }
+    }
+
+    fun updateIsFavorite(isFavorite: Boolean) {
+        thumbsUpAction.index = if (isFavorite) INDEX_SOLID else INDEX_OUTLINE
+
+        host.notifyPlaybackRowChanged()
     }
 }
 
 class VideoFragment : PlaybackSupportFragment() {
 
-    fun setMovie(adapter: MyAdapter, movie: Movie) {
-        val playerGlue = PlaybackTransportControlGlue(
-            activity,
-            adapter
+    private var playerGlue: MyGlue<PlayerAdapter>? = null
+
+    fun updateIsFavorite(isFavorite: Boolean) {
+        playerGlue?.updateIsFavorite(isFavorite)
+    }
+
+    fun setMovie(adapter: MyAdapter, movie: Movie, watchlistCallback: () -> Unit) {
+
+        playerGlue = MyGlue(
+            context,
+            adapter,
+            watchlistCallback
         )
 
-        playerGlue.host = PlaybackSupportFragmentGlueHost(this)
+        playerGlue?.host = PlaybackSupportFragmentGlueHost(this)
 
-        playerGlue.title = "${movie.title} Trailer"
+        playerGlue?.title = "${movie.title} Trailer"
 
-        playerGlue.subtitle = movie.overview
+        playerGlue?.subtitle = movie.overview
 
         movie.posterPath?.let {
             lifecycleScope.launch {
-                playerGlue.art =
-                    drawableFromUrl("https://image.tmdb.org/t/p/w500/${movie.posterPath}")
+                playerGlue?.art =
+                    drawableFromUrl("https://image.tmdb.org/t/p/w500${movie.posterPath}")
             }
         }
 
-        playerGlue.addPlayerCallback(object : PlaybackGlue.PlayerCallback() {
+        playerGlue?.addPlayerCallback(object : PlaybackGlue.PlayerCallback() {
             override fun onPreparedStateChanged(glue: PlaybackGlue) {
                 if (glue.isPrepared) {
-                    playerGlue.seekProvider = MySeekProvider(playerGlue.duration)
+                    playerGlue?.let {
+                        playerGlue?.seekProvider = MySeekProvider(it.duration)
+                    }
                 }
             }
         })
@@ -168,8 +254,9 @@ class MyAdapter(private val videoId: String) : PlayerAdapter(), YouTubePlayerLis
     }
 
     override fun onReady(youTubePlayer: YouTubePlayer) {
+
         this.youtubePlayer = youTubePlayer
-        youTubePlayer.loadVideo(videoId, 0F) // TODO:
+        youTubePlayer.loadVideo(videoId, 0F)
         ready = true
         callback.onPreparedStateChanged(this)
     }
