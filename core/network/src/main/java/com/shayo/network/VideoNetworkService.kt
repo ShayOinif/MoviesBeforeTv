@@ -1,5 +1,6 @@
 package com.shayo.network
 
+import com.shayo.network.BuildConfig.API_KEY
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -12,7 +13,7 @@ interface VideoNetworkService {
         @Path("movie_id")
         movieId: Int,
         @Query("api_key")
-        apiKey: String = "3c91b35e1a662bf84c5f898ea35408c2"
+        apiKey: String = API_KEY
     ): VideoServiceResponse
 }
 

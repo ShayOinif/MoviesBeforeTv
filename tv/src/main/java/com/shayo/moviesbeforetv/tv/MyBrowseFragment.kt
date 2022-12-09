@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
@@ -19,14 +20,16 @@ import androidx.leanback.app.BackgroundManager
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
-import androidx.leanback.widget.ObjectAdapter.DataObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.paging.map
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
+import com.firebase.ui.auth.AuthUI
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
@@ -56,20 +59,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
         updateBackground(mBackgroundUri)
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        mBackgroundManager = BackgroundManager.getInstance(activity)
-        mBackgroundManager.attach(requireActivity().window)
-        mMetrics = DisplayMetrics()
-        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
-
-        brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
-        searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
-
-        headersState = HEADERS_ENABLED
-
-        isHeadersTransitionOnBackEnabled = true
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         val rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
         val cardPresenter = CardPresenter(mMetrics.widthPixels)
@@ -84,7 +75,6 @@ class MyBrowseFragment : BrowseSupportFragment() {
             Triple("Top Rated Tv Shows","tv", "top_rated"),
         ).forEach { (header, type, category) ->
             val pagingAdapter = PagingDataAdapter(cardPresenter, movieDiff)
-
             rowsAdapter.add(
                 ListRow(
                     HeaderItem(header),
@@ -92,19 +82,21 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 )
             )
 
-            lifecycleScope.launch {
-                combine(
-                    movieManager.getCategoryFlow(type = type, category = category, scope = lifecycleScope),
-                    movieManager.favoritesMap
-                ) { page, favorites ->
-                    page.map {
-                        BrowseMovie(
-                            it,
-                            favorites.containsKey(it.id)
-                        )
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                    combine(
+                        movieManager.getCategoryFlow(type = type, category = category, scope = lifecycleScope),
+                        movieManager.favoritesMap
+                    ) { page, favorites ->
+                        page.map {
+                            BrowseMovie(
+                                it,
+                                favorites.containsKey(it.id)
+                            )
+                        }
+                    }.collectLatest {
+                        pagingAdapter.submitData(it)
                     }
-                }.collectLatest {
-                    pagingAdapter.submitData(it)
                 }
             }
         }
@@ -125,7 +117,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
         adapter = rowsAdapter
 
         pagingAdapter3.registerObserver(
-            object : DataObserver() {
+            object : ObjectAdapter.DataObserver() {
                 override fun onChanged() {
                     if (pagingAdapter3.size() == 0) {
                         rowsAdapter.removeItems(5, 1)
@@ -201,6 +193,22 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 }
             }
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        mBackgroundManager = BackgroundManager.getInstance(activity)
+        mBackgroundManager.attach(requireActivity().window)
+        mMetrics = DisplayMetrics()
+        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
+
+        brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
+        searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
+
+        headersState = HEADERS_ENABLED
+
+        isHeadersTransitionOnBackEnabled = true
 
         setOnSearchClickedListener {
             findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
@@ -288,7 +296,9 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 if (item == "Login")
                     findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
                 else
-                    userRepository.signOut()
+                    AuthUI.getInstance()
+                        .signOut(requireContext())
+                //userRepository.signOut()
             }
         }
     }

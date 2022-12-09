@@ -16,6 +16,11 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+
+        def accessTokenPropertiesFile = rootProject.file("apikey.properties")
+        def accessTokenProperties = new Properties()
+        accessTokenProperties.load(new FileInputStream(accessTokenPropertiesFile))
+        buildConfigField("String", "API_KEY", accessTokenProperties['API_KEY'])
     }
 
     buildTypes {

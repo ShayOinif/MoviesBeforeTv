@@ -1,6 +1,7 @@
 package com.shayo.network
 
 import com.google.gson.annotations.SerializedName
+import com.shayo.network.BuildConfig.API_KEY
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -16,7 +17,7 @@ internal interface MovieNetworkService {
         @Query("page")
         page: Int = 1,
         @Query("api_key")
-        apiKey: String = "3c91b35e1a662bf84c5f898ea35408c2",
+        apiKey: String = API_KEY,
     ): MovieNetworkResponse
 
     @GET("search/multi")
@@ -26,7 +27,7 @@ internal interface MovieNetworkService {
         @Query("page")
         page: Int = 1,
         @Query("api_key")
-        apiKey: String = "3c91b35e1a662bf84c5f898ea35408c2",
+        apiKey: String = API_KEY,
     ): MovieNetworkResponse
 
     @GET("{type}/{id}")
@@ -36,7 +37,7 @@ internal interface MovieNetworkService {
         @Path("id")
         id: Int,
         @Query("api_key")
-        apiKey: String = "3c91b35e1a662bf84c5f898ea35408c2",
+        apiKey: String = API_KEY,
     ): NetworkQueryMovie
 }
 
