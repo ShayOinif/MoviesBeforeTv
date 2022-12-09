@@ -1,5 +1,6 @@
 package com.shayo.movies
 
+import android.util.Log
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
@@ -86,8 +87,10 @@ class CategoryMediator(
     override suspend fun initialize(): InitializeAction {
         return if (localMovieCategoryDataSource.isUpdateNeeded(type, category))
         {
+            Log.d("MyTag", "Initial")
             InitializeAction.LAUNCH_INITIAL_REFRESH
         } else {
+            Log.d("MyTag", "No Initial")
             InitializeAction.SKIP_INITIAL_REFRESH
         }
     }

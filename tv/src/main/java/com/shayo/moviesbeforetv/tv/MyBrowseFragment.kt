@@ -53,28 +53,51 @@ class MyBrowseFragment : BrowseSupportFragment() {
     @Inject
     lateinit var userRepository: UserRepository
 
-    override fun onResume() {
-        super.onResume()
+    private val categoriesAdapters = mutableListOf<PagingDataAdapter<BrowseMovie>>()
 
-        updateBackground(mBackgroundUri)
-    }
+    // TODO: Get categories from some where else
+    private val categories = listOf(
+        Triple("Popular Movies", "movie", "popular"),
+        Triple("Upcoming Movies", "movie", "upcoming"),
+        Triple("Popular Tv Shows", "tv", "popular"),
+        Triple("Top Rated Tv Shows", "tv", "top_rated"),
+    )
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    private lateinit var favoritesAdapter: ArrayObjectAdapter
+
+    private lateinit var settingsAdapter: ArrayObjectAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        mBackgroundManager = BackgroundManager.getInstance(activity)
+        mBackgroundManager.attach(requireActivity().window)
+        mMetrics = DisplayMetrics()
+        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
+
+        brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
+        searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
+
+        headersState = HEADERS_ENABLED
+
+        isHeadersTransitionOnBackEnabled = true
+
+        setOnSearchClickedListener {
+            findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
+        }
+
+        onItemViewSelectedListener = ItemViewSelectedListener()
+        onItemViewClickedListener = ItemViewClickedListener()
+
 
         val rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
         val cardPresenter = CardPresenter(mMetrics.widthPixels)
 
         val movieDiff = MovieDiff()
 
-        // TODO:
-        listOf(
-            Triple("Popular Movies", "movie","popular"),
-            Triple("Upcoming Movies","movie", "upcoming"),
-            Triple("Popular Tv Shows","tv", "popular"),
-            Triple("Top Rated Tv Shows","tv", "top_rated"),
-        ).forEach { (header, type, category) ->
+        categories.forEach { (header, _, _) ->
             val pagingAdapter = PagingDataAdapter(cardPresenter, movieDiff)
+
             rowsAdapter.add(
                 ListRow(
                     HeaderItem(header),
@@ -82,69 +105,99 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 )
             )
 
-            viewLifecycleOwner.lifecycleScope.launch {
-                viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                    combine(
-                        movieManager.getCategoryFlow(type = type, category = category, scope = lifecycleScope),
-                        movieManager.favoritesMap
-                    ) { page, favorites ->
-                        page.map {
-                            BrowseMovie(
-                                it,
-                                favorites.containsKey(it.id)
-                            )
-                        }
-                    }.collectLatest {
-                        pagingAdapter.submitData(it)
-                    }
-                }
-            }
+            categoriesAdapters.add(pagingAdapter)
         }
 
-        val gridHeader = HeaderItem( "Settings")
+        settingsAdapter = ArrayObjectAdapter(GridItemPresenter(mMetrics.widthPixels / 6))
+        settingsAdapter.add("Login")
 
-        val mGridPresenter = GridItemPresenter(mMetrics.widthPixels / 6)
-        val gridRowAdapter = ArrayObjectAdapter(mGridPresenter)
-        gridRowAdapter.add("Login")
+        rowsAdapter.add(ListRow(HeaderItem("Settings"), settingsAdapter))
 
-        rowsAdapter.add(ListRow(gridHeader, gridRowAdapter))
-
-
-        val pagingAdapter3 = ArrayObjectAdapter(cardPresenter)
-
-        val header3 = HeaderItem("Favorites")
+        favoritesAdapter = ArrayObjectAdapter(cardPresenter)
 
         adapter = rowsAdapter
 
-        pagingAdapter3.registerObserver(
+        // Todo: Unregister in proper place
+        favoritesAdapter.registerObserver(
             object : ObjectAdapter.DataObserver() {
                 override fun onChanged() {
-                    if (pagingAdapter3.size() == 0) {
-                        rowsAdapter.removeItems(5, 1)
+                    if (favoritesAdapter.size() == 0) {
 
-                        adapter = rowsAdapter
+                        (adapter as ArrayObjectAdapter).removeItems(5, 1)
                     } else {
                         if (rowsAdapter.size() == 5) {
-                            rowsAdapter.add(ListRow(header3, pagingAdapter3))
 
-                            adapter = rowsAdapter
+                            (adapter as ArrayObjectAdapter).add(ListRow(HeaderItem("Favorites"), favoritesAdapter))
                         }
                     }
                 }
             }
         )
+    }
 
-        lifecycleScope.launch {
-            launch {
-                movieManager.getFavoritesFlow().collectLatest {
-                    val data = it.map {
-                        BrowseMovie(it, true)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                categories.forEachIndexed { index, (_, type, category) ->
+                    launch {
+                        combine(
+                            movieManager.getCategoryFlow(
+                                type = type,
+                                category = category,
+                                scope = viewLifecycleOwner.lifecycleScope
+                            ),
+                            movieManager.favoritesMap
+                        ) { page, favorites ->
+                            page.map {
+                                BrowseMovie(
+                                    it,
+                                    favorites.containsKey(it.id)
+                                )
+                            }
+                        }.collectLatest {
+                            categoriesAdapters[index].submitData(it)
+                        }
                     }
+                }
 
-                    pagingAdapter3.clear()
+                launch {
+                    movieManager.favoritesFlow.collectLatest {
+                        val data = it.map {
+                            BrowseMovie(it, true)
+                        }
 
-                    data.forEach {
-                        pagingAdapter3.add(it)
+                        favoritesAdapter.clear()
+
+                        data.forEach {
+                            favoritesAdapter.add(it)
+                        }
+                    }
+                }
+
+                launch {
+                    // TODO: Maybe find another place to handle login logout in term of favorties
+                    userRepository.currentAuthUserFlow.collectLatest { currentUser ->
+                        currentUser?.run {
+                            movieManager.setCollection(email)
+
+                            settingsAdapter.replace(0, "Logout")
+
+
+                            photoUrl?.let { photo ->
+                                badgeDrawable = drawableFromUrl(photo.toString())
+                            } ?: run { title = displayName }
+                        } ?: run {
+                            movieManager.setCollection(null)
+
+                            settingsAdapter.replace(0, "Login")
+
+                            badgeDrawable = ContextCompat.getDrawable(
+                                requireContext(),
+                                R.drawable.ic_baseline_person_24
+                            )
+                        }
                     }
                 }
             }
@@ -171,51 +224,12 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 }
             }
         }*/
-
-        lifecycleScope.launch {
-            // TODO: Maybe find another place to handle login logout in term of favorties
-            userRepository.currentAuthUserFlow.collectLatest { currentUser ->
-                currentUser?.run {
-                    movieManager.setCollection(email)
-
-                    gridRowAdapter.replace(0, "Logout")
-
-
-                    photoUrl?.let { photo ->
-                        badgeDrawable = drawableFromUrl(photo.toString())
-                    } ?: run { title = displayName }
-                } ?: run {
-                    movieManager.setCollection(null)
-
-                    gridRowAdapter.replace(0, "Login")
-
-                    badgeDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_baseline_person_24)
-                }
-            }
-        }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onResume() {
+        super.onResume()
 
-        mBackgroundManager = BackgroundManager.getInstance(activity)
-        mBackgroundManager.attach(requireActivity().window)
-        mMetrics = DisplayMetrics()
-        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
-
-        brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
-        searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
-
-        headersState = HEADERS_ENABLED
-
-        isHeadersTransitionOnBackEnabled = true
-
-        setOnSearchClickedListener {
-            findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
-        }
-
-        onItemViewSelectedListener = ItemViewSelectedListener()
-        onItemViewClickedListener = ItemViewClickedListener()
+        updateBackground(mBackgroundUri)
     }
 
     private suspend fun drawableFromUrl(url: String): Drawable {
@@ -309,7 +323,7 @@ private class MovieDiff : DiffUtil.ItemCallback<BrowseMovie>() {
         oldItem: BrowseMovie,
         newItem: BrowseMovie
     ): Boolean {
-        return oldItem.movie.id === newItem.movie.id
+        return oldItem.movie.id == newItem.movie.id
     }
 
     override fun areContentsTheSame(
@@ -321,6 +335,9 @@ private class MovieDiff : DiffUtil.ItemCallback<BrowseMovie>() {
                 oldItem.movie.backdropPath == newItem.movie.backdropPath &&
                 oldItem.movie.overview == newItem.movie.overview &&
                 oldItem.movie.releaseDate == newItem.movie.releaseDate &&
+                oldItem.movie.voteAverage == newItem.movie.voteAverage &&
+                oldItem.movie.genres == newItem.movie.genres &&
+                oldItem.movie.type == newItem.movie.type &&
                 oldItem.isFavorite == newItem.isFavorite
     }
 }

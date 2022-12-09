@@ -2,15 +2,18 @@ package com.shayo.movies
 
 import androidx.paging.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.shareIn
 
 interface MovieManager {
     fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>>
 
     val favoritesMap: Flow<Map<Int, String>>
 
-    fun getFavoritesFlow(): Flow<List<Movie>>
+    val favoritesFlow: Flow<List<Movie>>
 
     fun setCollection(collectionName: String?)
 
@@ -24,6 +27,8 @@ internal class MovieManagerImpl(
     private val genreRepository: GenreRepository,
     private val favoritesRepository: FavoritesRepository,
 ) : MovieManager {
+
+    private val coroutineScope = CoroutineScope((SupervisorJob()))
 
     override fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>> {
         return combine(
@@ -48,8 +53,7 @@ internal class MovieManagerImpl(
 
     override val favoritesMap = favoritesRepository.favoritesMap
 
-    override fun getFavoritesFlow(): Flow<List<Movie>> {
-        return combine(
+    override val favoritesFlow = combine(
             favoritesRepository.favoritesMap,
             genreRepository.movieGenresFlow
         ) { favoritesMap, genres ->
@@ -57,8 +61,7 @@ internal class MovieManagerImpl(
                 moviesRepository.getMovieById(id, type)!!
                     .mapGenres(genres)
             }
-        }
-    }
+        }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(1_500), replay = 1)
 
     override fun setCollection(collectionName: String?) {
         favoritesRepository.setCollection(collectionName)
