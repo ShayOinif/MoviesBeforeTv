@@ -1,15 +1,8 @@
 package com.shayo.moviesbeforetv.tv
 
-import android.content.res.Resources
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -24,36 +17,32 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.paging.LoadState
 import androidx.paging.map
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.SimpleTarget
-import com.bumptech.glide.request.transition.Transition
 import com.firebase.ui.auth.AuthUI
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
+import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.*
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MyBrowseFragment : BrowseSupportFragment() {
+class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
     @Inject
     lateinit var movieManager: MovieManager
 
     @Inject
     lateinit var userRepository: UserRepository
 
-    private val categoriesAdapters = mutableListOf<PagingDataAdapter<BrowseMovie>>()
+    private val categoriesAdapters =
+        mutableListOf<PagingDataAdapter<BrowseMovieLoadResult.BrowseMovie>>()
 
     // TODO: Get categories from some where else
     private val categories = listOf(
@@ -67,13 +56,14 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
     private lateinit var settingsAdapter: ArrayObjectAdapter
 
+    override lateinit var backgroundManager: BackgroundManager
+
+    override var backgroundFlow = MutableStateFlow<String?>(null)
+
+    private val reloadList = mutableListOf<() -> Unit>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        mBackgroundManager = BackgroundManager.getInstance(activity)
-        mBackgroundManager.attach(requireActivity().window)
-        mMetrics = DisplayMetrics()
-        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
 
         brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
         searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
@@ -83,7 +73,13 @@ class MyBrowseFragment : BrowseSupportFragment() {
         isHeadersTransitionOnBackEnabled = true
 
         setOnSearchClickedListener {
-            findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
+
+            reloadList.forEach {
+                Log.d("MyTag", "Refrshing")
+
+                it()
+            }
+            //findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
         }
 
         onItemViewSelectedListener = ItemViewSelectedListener()
@@ -91,7 +87,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
 
         val rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
-        val cardPresenter = CardPresenter(mMetrics.widthPixels)
+        val cardPresenter = CardPresenter(resources.configuration.screenWidthDp)
 
         val movieDiff = MovieDiff()
 
@@ -108,7 +104,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
             categoriesAdapters.add(pagingAdapter)
         }
 
-        settingsAdapter = ArrayObjectAdapter(GridItemPresenter(mMetrics.widthPixels / 6))
+        settingsAdapter =
+            ArrayObjectAdapter(GridItemPresenter(resources.configuration.screenWidthDp))
         settingsAdapter.add("Login")
 
         rowsAdapter.add(ListRow(HeaderItem("Settings"), settingsAdapter))
@@ -127,7 +124,12 @@ class MyBrowseFragment : BrowseSupportFragment() {
                     } else {
                         if (rowsAdapter.size() == 5) {
 
-                            (adapter as ArrayObjectAdapter).add(ListRow(HeaderItem("Favorites"), favoritesAdapter))
+                            (adapter as ArrayObjectAdapter).add(
+                                ListRow(
+                                    HeaderItem("Favorites"),
+                                    favoritesAdapter
+                                )
+                            )
                         }
                     }
                 }
@@ -137,6 +139,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        setupBackgroundUpdate(viewLifecycleOwner, this, requireActivity())
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -151,7 +155,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
                             movieManager.favoritesMap
                         ) { page, favorites ->
                             page.map {
-                                BrowseMovie(
+                                BrowseMovieLoadResult.BrowseMovie(
                                     it,
                                     favorites.containsKey(it.id)
                                 )
@@ -160,18 +164,65 @@ class MyBrowseFragment : BrowseSupportFragment() {
                             categoriesAdapters[index].submitData(it)
                         }
                     }
+
+                    launch {
+                        categoriesAdapters[index].loadStateFlow.collectLatest { state ->
+
+                            when (state.refresh) {
+                                is LoadState.Error -> {
+
+                                    reloadList.add {
+                                        categoriesAdapters[index].refresh()
+                                    }
+                                }
+
+                                else -> {
+
+                                    reloadList.remove {
+                                        categoriesAdapters[index].refresh()
+                                    }
+                                }
+                            }
+
+                            when (state.mediator?.append) {
+                                is LoadState.Error -> {
+                                    Log.d("MyTag", "append problem")
+                                    reloadList.add {
+                                        categoriesAdapters[index].retry()
+                                    }
+                                }
+                                else -> {
+                                    Log.d("MyTag", "append ok")
+                                    reloadList.remove {
+                                        categoriesAdapters[index].retry()
+                                    }
+                                }
+                            }
+
+                            if (state.append.endOfPaginationReached) {
+                                Log.d("MyTag", "end of pagination")
+                            }
+                        }
+                    }
                 }
 
                 launch {
                     movieManager.favoritesFlow.collectLatest {
-                        val data = it.map {
-                            BrowseMovie(it, true)
+                        val data = it.map { result ->
+                            result.fold(
+                                onSuccess = { movie ->
+                                    BrowseMovieLoadResult.BrowseMovie(movie, true)
+                                },
+                                onFailure = { error ->
+                                    BrowseMovieLoadResult.BrowseMovieLoadError(error)
+                                },
+                            )
                         }
 
                         favoritesAdapter.clear()
 
-                        data.forEach {
-                            favoritesAdapter.add(it)
+                        data.forEach { loadResult ->
+                            favoritesAdapter.add(loadResult)
                         }
                     }
                 }
@@ -180,14 +231,18 @@ class MyBrowseFragment : BrowseSupportFragment() {
                     // TODO: Maybe find another place to handle login logout in term of favorties
                     userRepository.currentAuthUserFlow.collectLatest { currentUser ->
                         currentUser?.run {
+
                             movieManager.setCollection(email)
 
                             settingsAdapter.replace(0, "Logout")
 
-
-                            photoUrl?.let { photo ->
-                                badgeDrawable = drawableFromUrl(photo.toString())
-                            } ?: run { title = displayName }
+                            loadDrawable(this@MyBrowseFragment, photoUrl?.toString()) { drawable ->
+                                drawable?.let {
+                                    badgeDrawable = it
+                                } ?: run {
+                                    // TODO: Change title, though right now it causes problems
+                                }
+                            }
                         } ?: run {
                             movieManager.setCollection(null)
 
@@ -202,96 +257,26 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 }
             }
         }
-
-        /*pagingAdapter2.addLoadStateListener { state ->
-            if (state.refresh is LoadState.Error) {
-                val mErrorFragment = ErrorSupportFragment()
-
-                parentFragmentManager
-                    .beginTransaction()
-                    .add(R.id.nav_host_fragment, mErrorFragment)
-                    .commit()
-
-                mErrorFragment.title = (state.refresh as LoadState.Error).error.message
-                mErrorFragment.buttonText = "Tap To Retry"
-                mErrorFragment.setButtonClickListener {
-                    parentFragmentManager
-                        .beginTransaction()
-                        .remove(mErrorFragment)
-                        .commit()
-
-                    pagingAdapter2.refresh()
-                }
-            }
-        }*/
     }
 
     override fun onResume() {
         super.onResume()
 
-        updateBackground(mBackgroundUri)
+        updateNow(this)
     }
 
-    private suspend fun drawableFromUrl(url: String): Drawable {
-        return withContext(Dispatchers.IO) {
-            val x: Bitmap
-            val connection: HttpURLConnection = URL(url).openConnection() as HttpURLConnection
-            connection.connect()
-            val input: InputStream = connection.inputStream
-            x = BitmapFactory.decodeStream(input)
-            BitmapDrawable(Resources.getSystem(), x)
-        }
-    }
-
-    private fun updateBackground(uri: String?) {
-        if (uri != null) {
-            val width = mMetrics.widthPixels
-            val height = mMetrics.heightPixels
-            Glide.with(requireActivity())
-                .load("https://image.tmdb.org/t/p/original/$uri")
-                .centerCrop()
-                .error(R.drawable.ic_baseline_movie_filter_24)
-                .into<SimpleTarget<Drawable>>(
-                    object : SimpleTarget<Drawable>(width, height) {
-                        override fun onResourceReady(
-                            drawable: Drawable,
-                            transition: Transition<in Drawable>?
-                        ) {
-                            mBackgroundManager.drawable = drawable
-                        }
-                    })
-        } else mBackgroundManager.drawable = null
-        mBackgroundTimer?.cancel()
-    }
-
-    private lateinit var mBackgroundManager: BackgroundManager
-    private lateinit var mMetrics: DisplayMetrics
-    private var mBackgroundTimer: Timer? = null
-    private var mBackgroundUri: String? = null
-    private val mHandler = Handler(Looper.myLooper()!!)
 
     private inner class ItemViewSelectedListener : OnItemViewSelectedListener {
         override fun onItemSelected(
             itemViewHolder: Presenter.ViewHolder?, item: Any?,
             rowViewHolder: RowPresenter.ViewHolder, row: Row
         ) {
-            if (item is BrowseMovie) {
-                mBackgroundUri = item.movie.backdropPath
-                startBackgroundTimer()
+            backgroundFlow.value = when (item) {
+                is BrowseMovieLoadResult.BrowseMovie -> {
+                    item.movie.backdropPath
+                }
+                else -> null
             }
-        }
-    }
-
-    private fun startBackgroundTimer() {
-        mBackgroundTimer?.cancel()
-        mBackgroundTimer = Timer()
-        mBackgroundTimer?.schedule(UpdateBackgroundTask(), 1000)
-    }
-
-    private inner class UpdateBackgroundTask : TimerTask() {
-
-        override fun run() {
-            mHandler.post { updateBackground(mBackgroundUri) }
         }
     }
 
@@ -302,7 +287,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
             rowViewHolder: RowPresenter.ViewHolder?,
             row: Row?
         ) {
-            if (item is BrowseMovie) {
+            if (item is BrowseMovieLoadResult.BrowseMovie) {
                 val action =
                     MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(item.movie)
                 findNavController().navigate(action)
@@ -312,23 +297,22 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 else
                     AuthUI.getInstance()
                         .signOut(requireContext())
-                //userRepository.signOut()
             }
         }
     }
 }
 
-private class MovieDiff : DiffUtil.ItemCallback<BrowseMovie>() {
+class MovieDiff : DiffUtil.ItemCallback<BrowseMovieLoadResult.BrowseMovie>() {
     override fun areItemsTheSame(
-        oldItem: BrowseMovie,
-        newItem: BrowseMovie
+        oldItem: BrowseMovieLoadResult.BrowseMovie,
+        newItem: BrowseMovieLoadResult.BrowseMovie
     ): Boolean {
         return oldItem.movie.id == newItem.movie.id
     }
 
     override fun areContentsTheSame(
-        oldItem: BrowseMovie,
-        newItem: BrowseMovie
+        oldItem: BrowseMovieLoadResult.BrowseMovie,
+        newItem: BrowseMovieLoadResult.BrowseMovie
     ): Boolean {
         return oldItem.movie.title == newItem.movie.title &&
                 oldItem.movie.posterPath == newItem.movie.posterPath &&
@@ -342,18 +326,28 @@ private class MovieDiff : DiffUtil.ItemCallback<BrowseMovie>() {
     }
 }
 
-data class BrowseMovie(
-    val movie: Movie,
-    val isFavorite: Boolean = false,
-)
+sealed interface BrowseMovieLoadResult {
+    data class BrowseMovie(
+        val movie: Movie,
+        val isFavorite: Boolean = false,
+    ) : BrowseMovieLoadResult
+
+    data class BrowseMovieLoadError(
+        val error: Throwable
+    ) : BrowseMovieLoadResult
+}
+
 
 class CardPresenter(width: Int) : Presenter() {
 
-    private val width: Int = width / 6
+    private val width: Int = (width / 1.3).toInt()
 
     override fun onCreateViewHolder(parent: ViewGroup?): ViewHolder {
 
         val cardView = ImageCardView(parent?.context)
+
+        cardView.setMainImageDimensions(width, width * 3 / 2)
+        cardView.setMainImageScaleType(ImageView.ScaleType.CENTER)
 
         cardView.isFocusable = true
         cardView.isFocusableInTouchMode = true
@@ -363,27 +357,37 @@ class CardPresenter(width: Int) : Presenter() {
     override fun onBindViewHolder(viewHolder: ViewHolder?, item: Any?) {
 
         item?.let {
-            val browseMovie = item as BrowseMovie
+
             val cardView = viewHolder?.view as ImageCardView
 
-            cardView.titleText = browseMovie.movie.title
-            cardView.setMainImageDimensions(width, width * 3 / 2)
-            cardView.setMainImageScaleType(ImageView.ScaleType.CENTER)
+            when (item) {
+                is BrowseMovieLoadResult.BrowseMovie -> {
 
-            cardView.contentText =
-                "${browseMovie.movie.voteAverage}/10${if (browseMovie.movie.genres.isNotEmpty()) " - ${browseMovie.movie.genres[0].name}" else ""}"
+                    cardView.titleText = item.movie.title
 
-            if (browseMovie.isFavorite)
-                cardView.badgeImage = ContextCompat.getDrawable(
-                    viewHolder.view.context,
-                    R.drawable.ic_baseline_bookmark_24
-                )
+                    cardView.contentText =
+                        "${item.movie.voteAverage}/10${if (item.movie.genres.isNotEmpty()) " - ${item.movie.genres[0].name}" else ""}"
 
-            Glide.with(viewHolder.view.context)
-                .load("https://image.tmdb.org/t/p/w500/${browseMovie.movie.posterPath}") // TODO:
-                .centerCrop()
-                .error(R.drawable.ic_baseline_broken_image_24)
-                .into(cardView.mainImageView)
+                    if (item.isFavorite)
+                        cardView.badgeImage = ContextCompat.getDrawable(
+                            viewHolder.view.context,
+                            R.drawable.ic_baseline_bookmark_24
+                        )
+
+                    Glide.with(viewHolder.view.context)
+                        .load("https://image.tmdb.org/t/p/w500/${item.movie.posterPath}") // TODO:
+                        .centerCrop()
+                        .error(R.drawable.ic_baseline_broken_image_24)
+                        .into(cardView.mainImageView)
+                }
+                is BrowseMovieLoadResult.BrowseMovieLoadError -> {
+                    Glide.with(viewHolder.view.context)
+                        .load(R.drawable.ic_baseline_broken_image_24) // TODO:
+                        .centerCrop()
+                        .into(cardView.mainImageView)
+                }
+                else -> {}
+            }
         }
     }
 
@@ -395,7 +399,10 @@ class CardPresenter(width: Int) : Presenter() {
     }
 }
 
-private class GridItemPresenter(private val size: Int) : Presenter() {
+private class GridItemPresenter(size: Int) : Presenter() {
+
+    private val size = (size / 1.3).toInt()
+
     override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
         val view = TextView(parent.context)
         view.layoutParams = ViewGroup.LayoutParams(size, size)
@@ -412,4 +419,5 @@ private class GridItemPresenter(private val size: Int) : Presenter() {
     }
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {}
+
 }

@@ -37,8 +37,13 @@ class CategoryMediator(
             }
         }
 
+        Log.d("MyTag1","Trying to get page $loadKey")
+
         return network(type, category, loadKey).fold(
             onSuccess = { response ->
+
+                Log.d("MyTag1","got page $loadKey")
+
                 //database.withTransaction { TODO:
                 if (loadType == LoadType.REFRESH) {
                     localMovieCategoryDataSource.deleteCategory(type, category)
@@ -79,6 +84,7 @@ class CategoryMediator(
                 )
             },
             onFailure = {
+                Log.d("MyTag1","Error get page $loadKey")
                 MediatorResult.Error(it)
             }
         )
@@ -87,10 +93,8 @@ class CategoryMediator(
     override suspend fun initialize(): InitializeAction {
         return if (localMovieCategoryDataSource.isUpdateNeeded(type, category))
         {
-            Log.d("MyTag", "Initial")
             InitializeAction.LAUNCH_INITIAL_REFRESH
         } else {
-            Log.d("MyTag", "No Initial")
             InitializeAction.SKIP_INITIAL_REFRESH
         }
     }

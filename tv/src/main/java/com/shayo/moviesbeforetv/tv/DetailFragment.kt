@@ -1,8 +1,7 @@
 package com.shayo.moviesbeforetv.tv
 
-import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.util.DisplayMetrics
+import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.leanback.app.BackgroundManager
 import androidx.leanback.app.DetailsSupportFragment
@@ -10,21 +9,18 @@ import androidx.leanback.widget.*
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.SimpleTarget
-import com.bumptech.glide.request.transition.Transition
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
-import com.shayo.movies.MoviesRepository
 import com.shayo.movies.VideoRepository
+import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.util.*
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class DetailFragment : DetailsSupportFragment() {
+class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
 
     @Inject
     lateinit var moviesManager: MovieManager
@@ -34,21 +30,16 @@ class DetailFragment : DetailsSupportFragment() {
 
     private var trailer: String? = null
 
-    private lateinit var mBackgroundManager: BackgroundManager
-    private lateinit var mMetrics: DisplayMetrics
-    private var mBackgroundTimer: Timer? = null
-    private var mBackgroundUri: String? = null
+    override lateinit var backgroundManager: BackgroundManager
+
+    override var backgroundFlow = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        mBackgroundManager = BackgroundManager.getInstance(activity)
-        mMetrics = DisplayMetrics()
-        requireActivity().windowManager.defaultDisplay.getMetrics(mMetrics)
-
         val movie = navArgs<DetailFragmentArgs>().value.movie
 
-        mBackgroundUri = movie.backdropPath
+        backgroundFlow.value = movie.backdropPath
 
         val mPresenterSelector = ClassPresenterSelector()
 
@@ -57,18 +48,10 @@ class DetailFragment : DetailsSupportFragment() {
 
         val row = DetailsOverviewRow(movie)
 
-        Glide.with(requireActivity())
-            .load("https://image.tmdb.org/t/p/original/${movie.posterPath}")
-            .centerCrop()
-            .into<SimpleTarget<Drawable>>(object : SimpleTarget<Drawable>() {
-                override fun onResourceReady(
-                    drawable: Drawable,
-                    transition: Transition<in Drawable>?
-                ) {
-                    row.imageDrawable = drawable
-                    mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size())
-                }
-            })
+        loadDrawable(this, "https://image.tmdb.org/t/p/w500/${movie.posterPath}") { drawable ->
+            row.imageDrawable = drawable
+            mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size())
+        }
 
         val actionAdapter = ArrayObjectAdapter()
 
@@ -165,32 +148,10 @@ class DetailFragment : DetailsSupportFragment() {
         }
     }
 
-    private fun updateBackground(uri: String?) {
-        if (uri != null) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-            val width = mMetrics.widthPixels
-            val height = mMetrics.heightPixels
-            Glide.with(requireActivity())
-                .load("https://image.tmdb.org/t/p/original/$uri")
-                .centerCrop()
-                .error(R.drawable.ic_baseline_movie_filter_24)
-                .into<SimpleTarget<Drawable>>(
-                    object : SimpleTarget<Drawable>(width, height) {
-                        override fun onResourceReady(
-                            drawable: Drawable,
-                            transition: Transition<in Drawable>?
-                        ) {
-                            mBackgroundManager.drawable = drawable
-                        }
-                    })
-        } else mBackgroundManager.drawable = null
-        mBackgroundTimer?.cancel()
-    }
-
-    override fun onResume() {
-        super.onResume()
-
-        updateBackground(mBackgroundUri)
+        setupBackgroundUpdate(viewLifecycleOwner, this, requireActivity(), 0L)
     }
 }
 
@@ -208,8 +169,6 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
 
         viewHolder.subtitle.text = "${movie.releaseDate}\n${movie.voteAverage}/10\n" +
                 "${movie.genres.joinToString(" - ") { it.name }}"
-
-
 
         viewHolder.body.text = movie.overview
     }

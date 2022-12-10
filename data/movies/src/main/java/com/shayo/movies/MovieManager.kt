@@ -13,7 +13,8 @@ interface MovieManager {
 
     val favoritesMap: Flow<Map<Int, String>>
 
-    val favoritesFlow: Flow<List<Movie>>
+    // TODO: Handle differently, especially for reloading once network available again
+    val favoritesFlow: Flow<List<Result<Movie>>>
 
     fun setCollection(collectionName: String?)
 
@@ -58,8 +59,9 @@ internal class MovieManagerImpl(
             genreRepository.movieGenresFlow
         ) { favoritesMap, genres ->
             favoritesMap.map { (id, type) ->
-                moviesRepository.getMovieById(id, type)!!
-                    .mapGenres(genres)
+                moviesRepository.getMovieById(id, type).map { movie ->
+                    movie.mapGenres(genres)
+                }
             }
         }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(1_500), replay = 1)
 
