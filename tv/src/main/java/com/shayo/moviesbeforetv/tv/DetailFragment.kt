@@ -3,7 +3,7 @@ package com.shayo.moviesbeforetv.tv
 import android.os.Bundle
 import android.view.View
 import androidx.core.content.ContextCompat
-import androidx.leanback.app.BackgroundManager
+import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.DetailsSupportFragment
 import androidx.leanback.widget.*
 import androidx.lifecycle.Lifecycle
@@ -15,14 +15,13 @@ import androidx.paging.map
 import com.shayo.movies.*
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
+class DetailFragment : DetailsSupportFragment() {
 
     @Inject
     lateinit var moviesManager: MovieManager
@@ -35,9 +34,7 @@ class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
 
     private var trailer: String? = null
 
-    override lateinit var backgroundManager: BackgroundManager
-
-    override var backgroundFlow = MutableStateFlow<Background?>(null)
+    private lateinit var backgroundViewModel: BackgroundViewModel
 
     private lateinit var mAdapter: ArrayObjectAdapter
     private lateinit var actionAdapter: ArrayObjectAdapter
@@ -48,6 +45,8 @@ class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
         val mPresenterSelector = ClassPresenterSelector()
         actionAdapter = ArrayObjectAdapter()
@@ -129,8 +128,6 @@ class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupBackgroundUpdate(viewLifecycleOwner, this, requireActivity(), 0L)
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 val movieId = navArgs<DetailFragmentArgs>().value.movieId
@@ -146,9 +143,7 @@ class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
                         .collectLatest { movie ->
                             movie?.let {
 
-                                backgroundFlow.value = movie.backdropPath?.let {
-                                    Background.HasBackground(it)
-                                } ?: Background.NoBackground
+                                backgroundViewModel.backgroundFlow.value = movie.backdropPath
 
                                 detailsRow.item = with(movie) {
                                     DetailedMovie(
@@ -169,13 +164,12 @@ class DetailFragment : DetailsSupportFragment(), FragmentWithBackground {
                                     )
                                 }
 
-                                loadDrawable(
+                                detailsRow.imageDrawable = loadDrawable(
                                     this@DetailFragment,
                                     "https://image.tmdb.org/t/p/w500/${movie.posterPath}"
-                                ) { drawable ->
-                                    detailsRow.imageDrawable = drawable
-                                    mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size())
-                                }
+                                )
+
+                                mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size())
 
                                 watchListAction.label1 = if (movie.isFavorite) {
                                     "Remove From Watchlist"

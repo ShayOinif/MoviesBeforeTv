@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import androidx.leanback.app.BackgroundManager
+import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
@@ -25,14 +25,14 @@ import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
+class MyBrowseFragment : BrowseSupportFragment() {
     @Inject
     lateinit var movieManager: MovieManager
 
@@ -41,6 +41,8 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
 
     private val categoriesAdapters =
         mutableListOf<PagingDataAdapter<BrowseMovieLoadResult.BrowseMovie>>()
+
+    private lateinit var backgroundViewModel: BackgroundViewModel
 
     // TODO: Get categories from some where else
     private val categories = listOf(
@@ -54,12 +56,10 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
 
     private lateinit var settingsAdapter: ArrayObjectAdapter
 
-    override lateinit var backgroundManager: BackgroundManager
-
-    override var backgroundFlow = MutableStateFlow<Background?>(null)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
         brandColor = ContextCompat.getColor(requireActivity(), R.color.brand_color)
         searchAffordanceColor = ContextCompat.getColor(requireActivity(), R.color.search_color)
@@ -130,8 +130,6 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        setupBackgroundUpdate(viewLifecycleOwner, this, requireActivity())
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -229,12 +227,10 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
 
                             settingsAdapter.replace(0, "Logout")
 
-                            loadDrawable(this@MyBrowseFragment, photoUrl?.toString()) { drawable ->
-                                drawable?.let {
-                                    badgeDrawable = it
-                                } ?: run {
-                                    // TODO: Change title, though right now it causes problems
-                                }
+                            loadDrawable(this@MyBrowseFragment, photoUrl?.toString())?.let {
+                                badgeDrawable = it
+                            } ?: run {
+                                // TODO: Change title, though right now it causes problems
                             }
                         } ?: run {
                             movieManager.setCollection(null)
@@ -252,25 +248,18 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-
-        updateNow(this)
-    }
-
-
     private inner class ItemViewSelectedListener : OnItemViewSelectedListener {
         override fun onItemSelected(
             itemViewHolder: Presenter.ViewHolder?, item: Any?,
             rowViewHolder: RowPresenter.ViewHolder, row: Row
         ) {
-            backgroundFlow.value = when (item) {
+            when (item) {
                 is BrowseMovieLoadResult.BrowseMovie -> {
-                    item.movie.backdropPath?.let {
-                        Background.HasBackground(it)
-                    } ?: Background.NoBackground
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        delay(1_000)
+                        backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                    }
                 }
-                else -> Background.NoBackground
             }
         }
     }

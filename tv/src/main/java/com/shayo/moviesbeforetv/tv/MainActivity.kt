@@ -1,9 +1,16 @@
 package com.shayo.moviesbeforetv.tv
 
 import android.os.Bundle
-import android.util.Log
+import androidx.activity.viewModels
 import androidx.fragment.app.FragmentActivity
+import androidx.leanback.app.BackgroundManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -11,12 +18,23 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main)
 
-        Log.d("MainActivity", "Created")
-    }
+        val backgroundManager = BackgroundManager.getInstance(this)
 
-    override fun onDestroy() {
-        super.onDestroy()
+        backgroundManager.attach(window)
 
-        Log.d("MainActivity", "onDestroy")
+        val backgroundViewModel by viewModels<BackgroundViewModel>()
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                backgroundViewModel.backgroundFlow.collectLatest { path ->
+                    backgroundManager.drawable = path?.let {
+                         loadDrawable(
+                            this@MainActivity,
+                            "https://image.tmdb.org/t/p/original${path}",
+                        )
+                    }
+                }
+            }
+        }
     }
 }

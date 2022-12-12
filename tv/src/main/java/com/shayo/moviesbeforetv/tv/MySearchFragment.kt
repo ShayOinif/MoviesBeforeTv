@@ -1,8 +1,7 @@
 package com.shayo.moviesbeforetv.tv
 
 import android.os.Bundle
-import android.view.View
-import androidx.leanback.app.BackgroundManager
+import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.SearchSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
@@ -13,6 +12,7 @@ import androidx.paging.map
 import com.shayo.movies.MovieManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.*
@@ -21,21 +21,21 @@ import javax.inject.Inject
 private const val QUERY_DELAY = 300L
 
 @AndroidEntryPoint
-class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResultProvider, FragmentWithBackground {
+class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResultProvider {
     private val rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
 
     private val query = MutableStateFlow("")
 
+    private lateinit var backgroundViewModel: BackgroundViewModel
+
     @Inject
     lateinit var movieManager: MovieManager
-
-    override lateinit var backgroundManager: BackgroundManager
-
-    override var backgroundFlow = MutableStateFlow<Background?>(null)
 
     @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
         setSearchResultProvider(this)
 
@@ -81,18 +81,14 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         }
 
         setOnItemViewSelectedListener { _, item, _, _ ->
+
             if (item is BrowseMovieLoadResult.BrowseMovie) {
-                backgroundFlow.value = item.movie.backdropPath?.let {
-                    Background.HasBackground(it)
-                } ?: Background.NoBackground
+                viewLifecycleOwner.lifecycleScope.launch {
+                    delay(1_000)
+                    backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                }
             }
         }
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        setupBackgroundUpdate(viewLifecycleOwner, this, requireActivity())
     }
 
     override fun getResultsAdapter(): ObjectAdapter {
@@ -109,11 +105,5 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         query.value = newQuery
 
         return true
-    }
-
-    override fun onResume() {
-        super.onResume()
-
-        updateNow(this)
     }
 }
