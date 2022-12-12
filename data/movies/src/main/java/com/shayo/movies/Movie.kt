@@ -1,7 +1,6 @@
 package com.shayo.movies
 
 import android.os.Parcelable
-import com.shayo.network.NetworkMovie
 import kotlinx.parcelize.Parcelize
 
 
@@ -16,7 +15,21 @@ data class Movie(
     val voteAverage: Double,
     val genres: List<Genre>,
     val type: String,
+    val runtime: Int?,
+    val isFavorite: Boolean = false
 ) : Parcelable
 
-internal fun NetworkMovie.mapToMovie(type: String) =
-    Movie(id, title, posterPath, backdropPath, overview, releaseDate, voteAverage, genreIds.map { Genre(it, "") }, type)
+internal fun Movie.mapGenres(genresMap: Map<Int, Genre>) =
+    copy(
+        genres = genres.map { genre ->
+
+            if (genre.name.isEmpty()) {
+                val name = genresMap[genre.id]?.name
+
+                name?.let {
+                    genre.copy(name = name)
+                } ?: genre
+            } else {
+                genre
+            }
+        })

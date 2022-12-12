@@ -5,14 +5,14 @@ import retrofit2.HttpException
 import java.io.IOException
 
 interface NetworkMovieDataSource {
-    suspend fun getMovies(type: String, category: String, page: Int = 1): Result<MovieNetworkResponse>
+    suspend fun getMovies(type: String, category: String, page: Int = 1): Result<MovieNetworkResponse<Int>>
 
-    suspend fun searchMovies(query: String, page: Int = 1): Result<MovieNetworkResponse>
+    suspend fun searchMovies(query: String, page: Int = 1): Result<MovieNetworkResponse<Int>>
 
     suspend fun getById(
         type: String,
         id: Int,
-    ): Result<NetworkQueryMovie>
+    ): Result<NetworkMovie<NetworkGenre>>
 }
 
 internal class NetworkMovieDataSourceImpl constructor(
@@ -21,7 +21,7 @@ internal class NetworkMovieDataSourceImpl constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun getMovies(type: String, category: String /* TODO */, page: Int): Result<MovieNetworkResponse> {
+    override suspend fun getMovies(type: String, category: String /* TODO */, page: Int): Result<MovieNetworkResponse<Int>> {
         return try {
             Result.success(movieNetworkService.getMovies(type, category, page))
         } catch (ioException: IOException) {
@@ -38,7 +38,7 @@ internal class NetworkMovieDataSourceImpl constructor(
         }
     }
 
-    override suspend fun searchMovies(query: String, page: Int): Result<MovieNetworkResponse> {
+    override suspend fun searchMovies(query: String, page: Int): Result<MovieNetworkResponse<Int>> {
         return try {
             Result.success(movieNetworkService.search(query, page))
         } catch (ioException: IOException) {
@@ -55,7 +55,7 @@ internal class NetworkMovieDataSourceImpl constructor(
         }
     }
 
-    override suspend fun getById(type: String, id: Int): Result<NetworkQueryMovie> {
+    override suspend fun getById(type: String, id: Int): Result<NetworkMovie<NetworkGenre>> {
         return try {
             Result.success(movieNetworkService.getById(type, id))
         } catch (ioException: IOException) {

@@ -8,7 +8,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 interface LocalMovieCategoryDataSource {
-    fun getCategoryPaging(type: String, category: String): PagingSource<Int, MovieCategory>
+    fun getCategoryPaging(type: String, category: String, position: Int): PagingSource<Int, MovieCategory>
 
     suspend fun addMovie(movieCategory: MovieCategory)
 
@@ -17,6 +17,8 @@ interface LocalMovieCategoryDataSource {
     suspend fun isUpdateNeeded(type: String, category: String): Boolean
 
     suspend fun reportUpdate(type: String, category: String)
+
+    suspend fun getUniqueIds(): List<Int>
 }
 
 // TODO: Move update to different module
@@ -29,8 +31,8 @@ class LocalMovieCategoryDataSourceImpl(
     @SuppressLint("SimpleDateFormat")
     private val formatter = SimpleDateFormat("yyyyMMdd")
 
-    override fun getCategoryPaging(type: String, category: String): PagingSource<Int, MovieCategory> {
-        return movieCategoryDao.getCategoryPaging(type, category)
+    override fun getCategoryPaging(type: String, category: String, position: Int): PagingSource<Int, MovieCategory> {
+        return movieCategoryDao.getCategoryPaging(type, category, position)
     }
 
     override suspend fun addMovie(movieCategory: MovieCategory) {
@@ -54,6 +56,10 @@ class LocalMovieCategoryDataSourceImpl(
         context.getSharedPreferences("Updates", MODE_PRIVATE).edit()
             .putLong("$type$category", System.currentTimeMillis())
             .apply()
+    }
+
+    override suspend fun getUniqueIds(): List<Int> {
+        return movieCategoryDao.getUniqueIds()
     }
 }
 

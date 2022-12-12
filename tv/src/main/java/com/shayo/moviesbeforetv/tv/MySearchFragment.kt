@@ -31,7 +31,7 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
     override lateinit var backgroundManager: BackgroundManager
 
-    override var backgroundFlow = MutableStateFlow<String?>(null)
+    override var backgroundFlow = MutableStateFlow<Background?>(null)
 
     @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +39,7 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
         setSearchResultProvider(this)
 
-        val cardPresenter = CardPresenter(resources.configuration.screenWidthDp)
+        val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
 
         val pagingAdapter: PagingDataAdapter<BrowseMovieLoadResult.BrowseMovie> = PagingDataAdapter(cardPresenter,
             MovieDiff())
@@ -61,7 +61,8 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                             page.map {
                                 BrowseMovieLoadResult.BrowseMovie(
                                     it,
-                                    favorites.containsKey(it.id)
+                                    favorites.containsKey(it.id),
+                                    0, // TODO:
                                 )
                             }
                         }.collectLatest {
@@ -73,12 +74,17 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         }
 
         setOnItemViewClickedListener { _, item, _, _ ->
-            findNavController().navigate(MySearchFragmentDirections.actionMySearchFragmentToDetailFragment((item as BrowseMovieLoadResult.BrowseMovie).movie))
+
+            with (item as BrowseMovieLoadResult.BrowseMovie) {
+                findNavController().navigate(MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(movie.id, movie.type, null))
+            }
         }
 
         setOnItemViewSelectedListener { _, item, _, _ ->
             if (item is BrowseMovieLoadResult.BrowseMovie) {
-                backgroundFlow.value = item.movie.backdropPath
+                backgroundFlow.value = item.movie.backdropPath?.let {
+                    Background.HasBackground(it)
+                } ?: Background.NoBackground
             }
         }
     }

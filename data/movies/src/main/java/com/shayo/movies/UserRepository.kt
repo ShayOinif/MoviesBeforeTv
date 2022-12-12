@@ -8,6 +8,8 @@ interface UserRepository {
     val currentAuthUserFlow: Flow<User?>
 
     fun signOut()
+
+    fun getCurrentUser(): User?
 }
 
 internal class UserRepositoryImpl(private val userDataSource: UserDataSource = UserDataSource.getUserDataSource()) : UserRepository {
@@ -18,5 +20,9 @@ internal class UserRepositoryImpl(private val userDataSource: UserDataSource = U
 
     override fun signOut() {
         userDataSource.signOut()
+    }
+
+    override fun getCurrentUser(): User? {
+        return userDataSource.getCurrentUser()?.run { User(displayName, email, photoUrl) }
     }
 }

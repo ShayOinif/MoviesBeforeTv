@@ -15,7 +15,7 @@ import com.shayo.network.MovieNetworkResponse
 class CategoryMediator(
     private val type: String,
     private val category: String,
-    private val network: suspend (type: String, category: String, page: Int) -> Result<MovieNetworkResponse>,
+    private val network: suspend (type: String, category: String, page: Int) -> Result<MovieNetworkResponse<Int>>,
     private val localMoviesDataSource: LocalMoviesDataSource,
     private val localMovieCategoryDataSource: LocalMovieCategoryDataSource,
 ) : RemoteMediator<Int, MovieCategory>() {
@@ -33,16 +33,13 @@ class CategoryMediator(
                         endOfPaginationReached = true
                     )
 
+                Log.d("MyTag", "Getting page: ${lastItem.position / 20 + 2}")
                 lastItem.position / 20 + 2
             }
         }
 
-        Log.d("MyTag1","Trying to get page $loadKey")
-
         return network(type, category, loadKey).fold(
             onSuccess = { response ->
-
-                Log.d("MyTag1","got page $loadKey")
 
                 //database.withTransaction { TODO:
                 if (loadType == LoadType.REFRESH) {
@@ -64,6 +61,7 @@ class CategoryMediator(
                                     voteAverage,
                                     genreIds.joinToString(separator = ",") { it.toString() },
                                     type,
+                                    runtime,
                                     System.currentTimeMillis()
                                 )
                             )
@@ -84,7 +82,6 @@ class CategoryMediator(
                 )
             },
             onFailure = {
-                Log.d("MyTag1","Error get page $loadKey")
                 MediatorResult.Error(it)
             }
         )

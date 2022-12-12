@@ -18,7 +18,7 @@ internal interface MovieNetworkService {
         page: Int = 1,
         @Query("api_key")
         apiKey: String = API_KEY,
-    ): MovieNetworkResponse
+    ): MovieNetworkResponse<Int>
 
     @GET("search/multi")
     suspend fun search(
@@ -28,7 +28,7 @@ internal interface MovieNetworkService {
         page: Int = 1,
         @Query("api_key")
         apiKey: String = API_KEY,
-    ): MovieNetworkResponse
+    ): MovieNetworkResponse<Int>
 
     @GET("{type}/{id}")
     suspend fun getById(
@@ -38,12 +38,12 @@ internal interface MovieNetworkService {
         id: Int,
         @Query("api_key")
         apiKey: String = API_KEY,
-    ): NetworkQueryMovie
+    ): NetworkMovie<NetworkGenre>
 }
 
-data class MovieNetworkResponse(
+data class MovieNetworkResponse<T>(
     val page: Int,
-    val results: List<NetworkMovie>,
+    val results: List<NetworkMovie<T>>,
     @SerializedName("total_results")
     val totalResults: Int,
     @SerializedName("total_pages")

@@ -20,7 +20,9 @@ interface MovieManager {
 
     suspend fun toggleFavorite(movie: Movie)
 
-    fun getCategoryFlow(type: String, category: String, scope: CoroutineScope): Flow<PagingData<Movie>>
+    fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int = 0): Flow<PagingData<PagedMovie>>
+
+    fun getDetailedMovieByIdFlow(id: Int, type: String): Flow<Movie?>
 }
 
 internal class MovieManagerImpl(
@@ -73,29 +75,26 @@ internal class MovieManagerImpl(
         favoritesRepository.toggleFavorite(movie.id, movie.type)
     }
 
-    override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope): Flow<PagingData<Movie>> {
+    override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int): Flow<PagingData<PagedMovie>> {
         return combine(
-            moviesRepository.getCategoryFlow(type, category).cachedIn(scope),
+            moviesRepository.getCategoryFlow(type, category, position).cachedIn(scope),
             genreRepository.movieGenresFlow
         ) { moviePagingData, genres ->
             moviePagingData.map {
-                it.mapGenres(genres)
+                it.copy(movie = it.movie.mapGenres(genres))
             }
         }.cachedIn(scope)
     }
 
-    private fun Movie.mapGenres(genresMap: Map<Int, Genre>) =
-        copy(
-            genres = genres.map { genre ->
-
-                if (genre.name.isEmpty()) {
-                    val name = genresMap[genre.id]?.name
-
-                    name?.let {
-                        genre.copy(name = name)
-                    } ?: genre
-                } else {
-                    genre
-                }
-            })
+    override fun getDetailedMovieByIdFlow(id: Int, type: String): Flow<Movie?> {
+        return combine(
+            moviesRepository.getDetailedMovieByIdFlow(id, type),
+            favoritesMap,
+            genreRepository.movieGenresFlow,
+        ) { movie, favoriteMap, genres ->
+            movie?.let {
+                it.copy(isFavorite = favoriteMap.containsKey(it.id)).mapGenres(genres)
+            }
+        }
+    }
 }

@@ -2,7 +2,6 @@ package com.shayo.moviesbeforetv.tv
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -17,7 +16,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.paging.LoadState
 import androidx.paging.map
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
@@ -58,9 +56,7 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
 
     override lateinit var backgroundManager: BackgroundManager
 
-    override var backgroundFlow = MutableStateFlow<String?>(null)
-
-    private val reloadList = mutableListOf<() -> Unit>()
+    override var backgroundFlow = MutableStateFlow<Background?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,13 +69,7 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
         isHeadersTransitionOnBackEnabled = true
 
         setOnSearchClickedListener {
-
-            reloadList.forEach {
-                Log.d("MyTag", "Refrshing")
-
-                it()
-            }
-            //findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
+            findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToMySearchFragment())
         }
 
         onItemViewSelectedListener = ItemViewSelectedListener()
@@ -87,7 +77,8 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
 
 
         val rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
-        val cardPresenter = CardPresenter(resources.configuration.screenWidthDp)
+
+        val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
 
         val movieDiff = MovieDiff()
 
@@ -105,7 +96,7 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
         }
 
         settingsAdapter =
-            ArrayObjectAdapter(GridItemPresenter(resources.configuration.screenWidthDp))
+            ArrayObjectAdapter(GridItemPresenter(resources.displayMetrics.widthPixels))
         settingsAdapter.add("Login")
 
         rowsAdapter.add(ListRow(HeaderItem("Settings"), settingsAdapter))
@@ -150,14 +141,16 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
                             movieManager.getCategoryFlow(
                                 type = type,
                                 category = category,
-                                scope = viewLifecycleOwner.lifecycleScope
+                                scope = viewLifecycleOwner.lifecycleScope,
                             ),
                             movieManager.favoritesMap
                         ) { page, favorites ->
                             page.map {
                                 BrowseMovieLoadResult.BrowseMovie(
-                                    it,
-                                    favorites.containsKey(it.id)
+                                    it.movie,
+                                    favorites.containsKey(it.movie.id),
+                                    it.position,
+                                    category,
                                 )
                             }
                         }.collectLatest {
@@ -165,7 +158,7 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
                         }
                     }
 
-                    launch {
+                    /*launch {
                         categoriesAdapters[index].loadStateFlow.collectLatest { state ->
 
                             when (state.refresh) {
@@ -203,15 +196,15 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
                                 Log.d("MyTag", "end of pagination")
                             }
                         }
-                    }
+                    }*/
                 }
 
                 launch {
                     movieManager.favoritesFlow.collectLatest {
-                        val data = it.map { result ->
+                        val data = it.mapIndexed { index, result ->
                             result.fold(
                                 onSuccess = { movie ->
-                                    BrowseMovieLoadResult.BrowseMovie(movie, true)
+                                    BrowseMovieLoadResult.BrowseMovie(movie, true, index)
                                 },
                                 onFailure = { error ->
                                     BrowseMovieLoadResult.BrowseMovieLoadError(error)
@@ -273,9 +266,11 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
         ) {
             backgroundFlow.value = when (item) {
                 is BrowseMovieLoadResult.BrowseMovie -> {
-                    item.movie.backdropPath
+                    item.movie.backdropPath?.let {
+                        Background.HasBackground(it)
+                    } ?: Background.NoBackground
                 }
-                else -> null
+                else -> Background.NoBackground
             }
         }
     }
@@ -289,7 +284,12 @@ class MyBrowseFragment : BrowseSupportFragment(), FragmentWithBackground {
         ) {
             if (item is BrowseMovieLoadResult.BrowseMovie) {
                 val action =
-                    MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(item.movie)
+                    MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(
+                        item.movie.id,
+                        item.movie.type,
+                        item.category,
+                        item.position
+                    )
                 findNavController().navigate(action)
             } else if (item is String) {
                 if (item == "Login")
@@ -330,6 +330,8 @@ sealed interface BrowseMovieLoadResult {
     data class BrowseMovie(
         val movie: Movie,
         val isFavorite: Boolean = false,
+        val position: Int,
+        val category: String? = null,
     ) : BrowseMovieLoadResult
 
     data class BrowseMovieLoadError(
@@ -340,7 +342,7 @@ sealed interface BrowseMovieLoadResult {
 
 class CardPresenter(width: Int) : Presenter() {
 
-    private val width: Int = (width / 1.3).toInt()
+    private val width: Int = width / 6
 
     override fun onCreateViewHolder(parent: ViewGroup?): ViewHolder {
 
@@ -355,7 +357,6 @@ class CardPresenter(width: Int) : Presenter() {
     }
 
     override fun onBindViewHolder(viewHolder: ViewHolder?, item: Any?) {
-
         item?.let {
 
             val cardView = viewHolder?.view as ImageCardView
@@ -401,7 +402,7 @@ class CardPresenter(width: Int) : Presenter() {
 
 private class GridItemPresenter(size: Int) : Presenter() {
 
-    private val size = (size / 1.3).toInt()
+    private val size = size / 6
 
     override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
         val view = TextView(parent.context)

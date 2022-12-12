@@ -18,7 +18,7 @@ private const val DEFAULT_UPDATE_TIME = 1_000L
 
 interface FragmentWithBackground {
     var backgroundManager: BackgroundManager
-    var backgroundFlow: MutableStateFlow<String?>
+    var backgroundFlow: MutableStateFlow<Background?>
 
     @OptIn(FlowPreview::class)
     fun setupBackgroundUpdate(
@@ -35,14 +35,24 @@ interface FragmentWithBackground {
 
         lifecycleOwner.lifecycleScope.launch {
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                backgroundFlow.debounce(timeout).collectLatest { uri ->
-                        loadDrawable(
-                            fragment,
-                            "https://image.tmdb.org/t/p/original${uri}",
-                        ) { drawable ->
-                            if (backgroundManager.drawable != drawable)
-                                backgroundManager.drawable = drawable
+                backgroundFlow.debounce(timeout).collectLatest { background ->
+
+                    background?.let {
+                        when (background) {
+                            is Background.HasBackground -> {
+                                loadDrawable(
+                                    fragment,
+                                    "https://image.tmdb.org/t/p/original${background.path}",
+                                ) { drawable ->
+                                    if (backgroundManager.drawable != drawable)
+                                        backgroundManager.drawable = drawable
+                                }
+                            }
+                            is Background.NoBackground -> {
+                                backgroundManager.drawable = null
+                            }
                         }
+                    }
                 }
             }
         }
@@ -60,4 +70,11 @@ interface FragmentWithBackground {
             }
         }
     }
+}
+
+sealed interface Background {
+    data class HasBackground(
+        val path: String
+    ) : Background
+    object NoBackground : Background
 }

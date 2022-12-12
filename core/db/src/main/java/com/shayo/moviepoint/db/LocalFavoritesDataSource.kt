@@ -7,6 +7,8 @@ interface LocalFavoritesDataSource {
     suspend fun toggleFavorite(dbFavorite: DbFavorite)
 
     val favoritesMapFlow: Flow<Map<Int, DbFavorite>>
+
+    suspend fun getFavoritesIds(): List<Int>
 }
 
 internal class LocalFavoritesDataSourceImpl(
@@ -23,4 +25,8 @@ internal class LocalFavoritesDataSourceImpl(
             .map {
                 it.associateBy { it.id }
             }
+
+    override suspend fun getFavoritesIds(): List<Int> {
+        return favoritesDao.getFavoritesIds()
+    }
 }

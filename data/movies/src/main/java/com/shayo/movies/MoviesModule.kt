@@ -5,6 +5,7 @@ import com.shayo.moviepoint.db.LocalGenresDataSource
 import com.shayo.moviepoint.db.LocalMovieCategoryDataSource
 import com.shayo.moviepoint.db.LocalMoviesDataSource
 import com.shayo.moviespoint.firestore.FirestoreFavoritesDataSource
+import com.shayo.network.NetworkCreditsDataSource
 import com.shayo.network.NetworkGenreDataSource
 import com.shayo.network.NetworkMovieDataSource
 import com.shayo.network.NetworkVideoDataSource
@@ -52,4 +53,9 @@ object MoviesModule {
     fun provideVideoRepository(
         networkVideoDataSource: NetworkVideoDataSource
     ): VideoRepository = VideoRepositoryImpl(networkVideoDataSource)
+
+    @Provides
+    fun provideCreditsRepository(
+        networkCreditsDataSource: NetworkCreditsDataSource,
+    ): CreditsRepository = CreditsRepositoryImpl(networkCreditsDataSource)
 }

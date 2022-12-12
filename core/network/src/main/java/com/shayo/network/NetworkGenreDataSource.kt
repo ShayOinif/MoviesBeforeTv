@@ -1,6 +1,5 @@
 package com.shayo.network
 
-import android.util.Log
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import java.io.IOException
@@ -16,7 +15,6 @@ internal class NetworkGenreDataSourceImpl constructor(
 
     override suspend fun getMoviesGenres(): Result<List<NetworkGenre>>{
         return try {
-            Log.d("MyTag", "Getting network genres")
 
             val movies = genreNetworkService.getMoviesGenres("movie").genres
             val shows = genreNetworkService.getMoviesGenres("tv").genres

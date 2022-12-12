@@ -16,5 +16,6 @@ data class DbMovie(
     // TODO:
     val genreIds: String,
     val type: String,
+    val runtime: Int? = null,
     val timeStamp: Long,
 )

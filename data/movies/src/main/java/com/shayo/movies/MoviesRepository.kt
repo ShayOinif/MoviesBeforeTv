@@ -7,14 +7,23 @@ import com.shayo.network.MovieNetworkResponse
 import com.shayo.network.NetworkMovieDataSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import java.text.SimpleDateFormat
 
 interface MoviesRepository {
-    suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse>
+    suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse<Int>>
 
-    fun getCategoryFlow(type: String, category: String): Flow<PagingData<Movie>>
+    fun getCategoryFlow(type: String, category: String, position: Int): Flow<PagingData<PagedMovie>>
 
     suspend fun getMovieById(id: Int, type: String): Result<Movie>
+
+    fun getDetailedMovieByIdFlow(id: Int, type: String): Flow<Movie?>
+
+    suspend fun deleteOldMovies(excludeMap: Map<Int, Void?>)
+
+    suspend fun getCategorizedMoviesIds(): List<Int>
+
+    suspend fun updateMovies(): Result<Void?>
 }
 
 internal class MoviesRepositoryImpl constructor(
@@ -27,12 +36,19 @@ internal class MoviesRepositoryImpl constructor(
     @SuppressLint("SimpleDateFormat")
     private val formatter = SimpleDateFormat("yyyyMMdd")
 
-    override suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse> {
+    override suspend fun searchLoader(
+        query: String,
+        page: Int
+    ): Result<MovieNetworkResponse<Int>> {
         return networkMovieDataSource.searchMovies(query, page)
     }
 
     @OptIn(ExperimentalPagingApi::class)
-    override fun getCategoryFlow(type: String, category: String): Flow<PagingData<Movie>> {
+    override fun getCategoryFlow(
+        type: String,
+        category: String,
+        position: Int
+    ): Flow<PagingData<PagedMovie>> {
         return Pager(
             config = PagingConfig(
                 pageSize = 20,
@@ -40,7 +56,7 @@ internal class MoviesRepositoryImpl constructor(
                 maxSize = 200,
             ),
             pagingSourceFactory = {
-                localMovieCategoryDataSource.getCategoryPaging(type, category)
+                localMovieCategoryDataSource.getCategoryPaging(type, category, position)
             },
             remoteMediator = CategoryMediator(
                 type,
@@ -50,27 +66,31 @@ internal class MoviesRepositoryImpl constructor(
                 localMovieCategoryDataSource,
             )
         ).flow.map {
-            it.map {
-                with(localMoviesDataSource.getMovieById(it.id)) {
+            it.map { movieCategory ->
+                with(localMoviesDataSource.getMovieById(movieCategory.id)) {
                     this?.let {
                         val genres = genreIds.split(",").let {
                             if (it.first().isEmpty()) {
-                                emptyList<Genre>()
+                                emptyList()
                             } else {
                                 it.map { Genre(it.toInt(), "") }
                             }
                         }
 
-                        Movie(
-                            id,
-                            title,
-                            posterPath,
-                            backdropPath,
-                            overview,
-                            releaseDate,
-                            voteAverage,
-                            genres,
-                            type,
+                        PagedMovie(
+                            Movie(
+                                id,
+                                title,
+                                posterPath,
+                                backdropPath,
+                                overview,
+                                releaseDate,
+                                voteAverage,
+                                genres,
+                                type,
+                                runtime
+                            ),
+                            movieCategory.position
                         )
                     } ?: throw Exception("Unknown Error") // TODO:
                 }
@@ -78,6 +98,7 @@ internal class MoviesRepositoryImpl constructor(
         }
     }
 
+    // TODO: Insert new into db
     override suspend fun getMovieById(id: Int, type: String) =
         localMoviesDataSource.getMovieById(id)?.let {
             if (formatter.formatToInt(System.currentTimeMillis()) -
@@ -105,17 +126,73 @@ internal class MoviesRepositoryImpl constructor(
                             voteAverage,
                             genres,
                             type,
+                            runtime
                         )
                     )
                 }
             }
         } ?: getByIdNetwork(type, id)
 
-    private suspend fun getByIdNetwork(type: String, id: Int) =
+    // TODO: Insert new into db
+    override fun getDetailedMovieByIdFlow(id: Int, type: String) =
+        localMoviesDataSource.getMovieByIdFlow(id).map { dbMovie ->
+            dbMovie?.let {
+                with(dbMovie) {
+                    val genres = genreIds.split(",").let {
+                        if (it.first().isEmpty()) {
+                            emptyList()
+                        } else {
+                            it.map { Genre(it.toInt(), "") }
+                        }
+                    }
+
+                    Movie(
+                        id,
+                        title,
+                        posterPath,
+                        backdropPath,
+                        overview,
+                        releaseDate,
+                        voteAverage,
+                        genres,
+                        type,
+                        runtime
+                    )
+                }
+            }
+        }.onEach { movie ->
+            if (movie == null || (movie.type == "Movie" && movie.runtime == null)) {
+                getByIdNetwork(type, id)
+            }
+        }
+
+    override suspend fun deleteOldMovies(excludeMap: Map<Int, Void?>) {
+        localMoviesDataSource.getOldMovies(System.currentTimeMillis() - 604_800_000) // TODO: Move to const, represents a week
+            .forEach {
+                if (!excludeMap.containsKey(it.id))
+                    localMoviesDataSource.deleteMovie(it)
+            }
+    }
+
+    override suspend fun getCategorizedMoviesIds(): List<Int> {
+        return localMovieCategoryDataSource.getUniqueIds()
+    }
+
+    override suspend fun updateMovies(): Result<Void?> {
+        localMoviesDataSource.getAllMovies().forEach {
+            val result = getByIdNetwork(it.type, it.id, it.timeStamp)
+
+            if (result.isFailure)
+                return Result.failure(result.exceptionOrNull()!!)
+        }
+
+        return Result.success(null)
+    }
+
+    private suspend fun getByIdNetwork(type: String, id: Int, oldTimeStamp: Long? = null) =
         networkMovieDataSource.getById(type, id)
             .map {
                 with(it) {
-
                     localMoviesDataSource.addMovie(
                         DbMovie(
                             id,
@@ -125,9 +202,10 @@ internal class MoviesRepositoryImpl constructor(
                             overview,
                             releaseDate,
                             voteAverage,
-                            genres.joinToString(",") { "${it.id}" },
+                            genreIds.joinToString(",") { "${it.id}" },
                             type,
-                            System.currentTimeMillis()
+                            runtime,
+                            oldTimeStamp ?: System.currentTimeMillis(),
                         )
                     )
 
@@ -139,10 +217,11 @@ internal class MoviesRepositoryImpl constructor(
                         overview,
                         releaseDate,
                         voteAverage,
-                        genres.map {
+                        genreIds.map {
                             Genre(it.id, it.name)
                         },
                         type,
+                        runtime,
                     )
                 }
             }

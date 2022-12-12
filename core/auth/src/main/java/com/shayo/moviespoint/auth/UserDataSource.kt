@@ -33,6 +33,10 @@ class UserDataSource private constructor() {
         FirebaseAuth.getInstance().signOut()
     }
 
+    fun getCurrentUser() = FirebaseAuth.getInstance().currentUser?.run {
+        AuthUser(displayName!!, email!!, photoUrl)
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: UserDataSource? = null

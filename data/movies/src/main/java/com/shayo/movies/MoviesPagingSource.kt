@@ -5,7 +5,7 @@ import androidx.paging.PagingState
 import com.shayo.network.MovieNetworkResponse
 
 internal open class MoviesPagingSource(
-    private val loadingFun: suspend (page: Int) -> Result<MovieNetworkResponse>,
+    private val loadingFun: suspend (page: Int) -> Result<MovieNetworkResponse<Int>>,
 ) : PagingSource<Int, Movie>() {
 
     override val jumpingSupported = true
@@ -26,11 +26,26 @@ internal open class MoviesPagingSource(
                             it.movieType == "tv" || it.movieType == "movie"
                         }
                         .map { networkMovie ->
-                        networkMovie.mapToMovie(networkMovie.movieType!!)
-                    },
+                            with(networkMovie) {
+                                Movie(
+                                    id,
+                                    title,
+                                    posterPath,
+                                    backdropPath,
+                                    overview,
+                                    releaseDate,
+                                    voteAverage,
+                                    genreIds.map {
+                                        Genre(it, "")
+                                    },
+                                    movieType!!,
+                                    runtime
+                                )
+                            }
+                        },
                     prevKey = if (nextPageNumber == 1) null else nextPageNumber - 1,
                     nextKey = if (nextPageNumber == response.totalPages) null else nextPageNumber + 1,
-                    )
+                )
             },
             onFailure = {
                 LoadResult.Error(it)

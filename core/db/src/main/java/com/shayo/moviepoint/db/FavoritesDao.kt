@@ -16,4 +16,7 @@ interface FavoritesDao {
 
     @Query("SELECT * FROM favorites WHERE id = :id")
     suspend fun getFavoriteById(id: Int): DbFavorite?
+
+    @Query("SELECT id FROM favorites")
+    suspend fun getFavoritesIds(): List<Int>
 }

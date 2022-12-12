@@ -10,7 +10,8 @@
         android:label="MyBrowseFragment" >
         <action
             android:id="@+id/action_myBrowseFragment_to_detailFragment"
-            app:destination="@id/detailFragment" />
+            app:destination="@id/detailFragment"
+            app:launchSingleTop="true" />
         <action
             android:id="@+id/action_myBrowseFragment_to_mySearchFragment"
             app:destination="@id/mySearchFragment" />
@@ -23,11 +24,26 @@
         android:name="com.shayo.moviesbeforetv.tv.DetailFragment"
         android:label="DetailFragment" >
         <argument
-            android:name="movie"
-            app:argType="com.shayo.movies.Movie" />
+            android:name="movieId"
+            app:argType="integer" />
         <action
             android:id="@+id/action_detailFragment_to_trailerPlayer"
             app:destination="@id/trailerPlayer" />
+        <argument
+            android:name="movieType"
+            app:argType="string" />
+        <argument
+            android:name="category"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="position"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <action
+            android:id="@+id/action_detailFragment_self"
+            app:destination="@id/detailFragment"
+            app:launchSingleTop="true" />
     </fragment>
     <fragment
         android:id="@+id/trailerPlayer"
@@ -46,7 +62,8 @@
         android:label="MySearchFragment" >
         <action
             android:id="@+id/action_mySearchFragment_to_detailFragment"
-            app:destination="@id/detailFragment" />
+            app:destination="@id/detailFragment"
+            app:launchSingleTop="true" />
     </fragment>
     <fragment
         android:id="@+id/loginFragment"

@@ -15,6 +15,8 @@ interface FavoritesRepository {
     suspend fun toggleFavorite(id: Int, type: String)
 
     val favoritesMap: Flow<Map<Int, String>>
+
+    suspend fun getAllFavoritesIds(collectionName: String?): List<Int>
 }
 
 internal class FavoritesRepositoryImpl(
@@ -50,4 +52,15 @@ internal class FavoritesRepositoryImpl(
                 }
         }
 
+    override suspend fun getAllFavoritesIds(collectionName: String?): List<Int> {
+        val ids = mutableListOf<Int>()
+
+        collectionName?.let {
+            ids.addAll(firestoreFavoritesDataSource.getFavoritesIdsByCollection(collectionName))
+        }
+
+        ids.addAll(localFavoritesDataSource.getFavoritesIds())
+
+        return ids
+    }
 }
