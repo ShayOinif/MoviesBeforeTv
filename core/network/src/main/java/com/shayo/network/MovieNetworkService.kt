@@ -41,6 +41,9 @@ internal interface MovieNetworkService {
     ): NetworkMovie<NetworkGenre>
 }
 
+/* TODO: We use this class also for search, which gives us persons as well, so find a way to make it
+ *  more generic or composed from different classes
+*/
 data class MovieNetworkResponse<T>(
     val page: Int,
     val results: List<NetworkMovie<T>>,

@@ -6,7 +6,7 @@ data class NetworkMovie<T>(
     val id: Int,
     @SerializedName("title", alternate = ["name"])
     val title: String,
-    @SerializedName("poster_path")
+    @SerializedName("poster_path", alternate = ["profile_path"])
     val posterPath: String?,
     @SerializedName("backdrop_path")
     val backdropPath: String?,
@@ -22,4 +22,6 @@ data class NetworkMovie<T>(
     @SerializedName("media_type")
     val movieType: String? = null,
     val runtime: Int? = null,
+    @SerializedName("known_for")
+    val knownFor: List<NetworkMovie<Int>>,
 )

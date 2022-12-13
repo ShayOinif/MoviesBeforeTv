@@ -1,30 +1,30 @@
 package com.shayo.moviesbeforetv.tv
 
-import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.paging.map
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
-import com.firebase.ui.auth.AuthUI
+import com.shayo.movies.Credit
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val FAVORITES_ID = 34L
 
 @AndroidEntryPoint
 class MyBrowseFragment : BrowseSupportFragment() {
@@ -42,7 +44,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
     lateinit var userRepository: UserRepository
 
     private val categoriesAdapters =
-        mutableListOf<PagingDataAdapter<BrowseMovieLoadResult.BrowseMovie>>()
+        mutableListOf<PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess>>()
 
     private lateinit var backgroundViewModel: BackgroundViewModel
 
@@ -84,10 +86,10 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
         val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
 
-        val movieDiff = MovieDiff()
+        val browseMovieLoadSuccessDiff = BrowseMovieLoadSuccessDiff()
 
         categories.forEach { (header, _, _) ->
-            val pagingAdapter = PagingDataAdapter(cardPresenter, movieDiff)
+            val pagingAdapter = PagingDataAdapter(cardPresenter, browseMovieLoadSuccessDiff)
 
             rowsAdapter.add(
                 ListRow(
@@ -100,8 +102,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
         }
 
         settingsAdapter =
-            ArrayObjectAdapter(GridItemPresenter(resources.displayMetrics.widthPixels))
-        settingsAdapter.add("Login")
+            ArrayObjectAdapter(SettingsCard(resources.displayMetrics.widthPixels))
+        settingsAdapter.add(SettingsCardType.Account(null))
 
         rowsAdapter.add(ListRow(HeaderItem("Settings"), settingsAdapter))
 
@@ -121,6 +123,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
                             (adapter as ArrayObjectAdapter).add(
                                 ListRow(
+                                    FAVORITES_ID,
                                     HeaderItem("Favorites"),
                                     favoritesAdapter
                                 )
@@ -148,12 +151,12 @@ class MyBrowseFragment : BrowseSupportFragment() {
                             movieManager.favoritesMap
                         ) { page, favorites ->
                             page.map {
-                                BrowseMovieLoadResult.BrowseMovie(
+                                BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
                                     it.movie,
                                     favorites.containsKey(it.movie.id),
                                     it.position,
                                     category,
-                                )
+                                ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
                             }
                         }.collectLatest {
                             categoriesAdapters[index].submitData(it)
@@ -206,7 +209,11 @@ class MyBrowseFragment : BrowseSupportFragment() {
                         val data = it.mapIndexed { index, result ->
                             result.fold(
                                 onSuccess = { movie ->
-                                    BrowseMovieLoadResult.BrowseMovie(movie, true, index)
+                                    BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
+                                        movie,
+                                        true,
+                                        index
+                                    )
                                 },
                                 onFailure = { error ->
                                     BrowseMovieLoadResult.BrowseMovieLoadError(error)
@@ -229,9 +236,12 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
                             movieManager.setCollection(email)
 
-                            settingsAdapter.replace(0, "Logout")
+                            settingsAdapter.replace(
+                                0,
+                                SettingsCardType.Account(photoUrl?.toString())
+                            )
 
-                            loadDrawable(this@MyBrowseFragment, photoUrl?.toString())?.let {
+                            loadDrawable(this@MyBrowseFragment, photoUrl?.toString(), true)?.let {
                                 badgeDrawable = it
                             } ?: run {
                                 // TODO: Change title, though right now it causes problems
@@ -239,7 +249,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
                         } ?: run {
                             movieManager.setCollection(null)
 
-                            settingsAdapter.replace(0, "Login")
+                            settingsAdapter.replace(0, SettingsCardType.Account(null))
 
                             badgeDrawable = ContextCompat.getDrawable(
                                 requireContext(),
@@ -258,7 +268,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
             rowViewHolder: RowPresenter.ViewHolder, row: Row
         ) {
             when (item) {
-                is BrowseMovieLoadResult.BrowseMovie -> {
+                is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie -> {
                     backgroundUpdateJob?.cancel()
 
                     backgroundUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -279,57 +289,99 @@ class MyBrowseFragment : BrowseSupportFragment() {
             rowViewHolder: RowPresenter.ViewHolder?,
             row: Row?
         ) {
-            if (item is BrowseMovieLoadResult.BrowseMovie) {
+            if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie) {
                 val action =
                     MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(
                         item.movie.id,
                         item.movie.type,
-                        item.category,
+                        item.category ?: "",
+                        if (row?.id == FAVORITES_ID) DetailsOrigin.WATCHLIST else DetailsOrigin.CATEGORY,
                         item.position
                     )
                 findNavController().navigate(action)
-            } else if (item is String) {
-                if (item == "Login")
-                    findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
-                else
-                    AuthUI.getInstance()
-                        .signOut(requireContext())
+            } else if (item is SettingsCardType) {
+                if (item is SettingsCardType.Account) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        userRepository.getCurrentUser()?.photoUrl?.toString()?.let {
+                            activityViewModels<UserImageViewModel>().value.userImage = loadDrawable(
+                                this@MyBrowseFragment,
+                                it
+                            )
+                        }
+                        findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
+                    }
+                }
+
             }
         }
     }
 }
 
-class MovieDiff : DiffUtil.ItemCallback<BrowseMovieLoadResult.BrowseMovie>() {
+@HiltViewModel
+class UserImageViewModel @Inject constructor() : ViewModel() {
+    var userImage: Drawable? = null
+}
+
+class BrowseMovieLoadSuccessDiff :
+    DiffUtil.ItemCallback<BrowseMovieLoadResult.BrowseMovieLoadSuccess>() {
     override fun areItemsTheSame(
-        oldItem: BrowseMovieLoadResult.BrowseMovie,
-        newItem: BrowseMovieLoadResult.BrowseMovie
+        oldItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess,
+        newItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess
     ): Boolean {
-        return oldItem.movie.id == newItem.movie.id
+        return if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie &&
+            newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie
+        ) {
+            oldItem.movie.id == newItem.movie.id
+        } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
+            newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
+        ) {
+            oldItem.credit.id == newItem.credit.id
+        } else {
+            false
+        }
     }
 
     override fun areContentsTheSame(
-        oldItem: BrowseMovieLoadResult.BrowseMovie,
-        newItem: BrowseMovieLoadResult.BrowseMovie
+        oldItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess,
+        newItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess
     ): Boolean {
-        return oldItem.movie.title == newItem.movie.title &&
-                oldItem.movie.posterPath == newItem.movie.posterPath &&
-                oldItem.movie.backdropPath == newItem.movie.backdropPath &&
-                oldItem.movie.overview == newItem.movie.overview &&
-                oldItem.movie.releaseDate == newItem.movie.releaseDate &&
-                oldItem.movie.voteAverage == newItem.movie.voteAverage &&
-                oldItem.movie.genres == newItem.movie.genres &&
-                oldItem.movie.type == newItem.movie.type &&
-                oldItem.isFavorite == newItem.isFavorite
+        return if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie &&
+            newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie
+        ) {
+            oldItem.movie.title == newItem.movie.title &&
+                    oldItem.movie.posterPath == newItem.movie.posterPath &&
+                    oldItem.movie.backdropPath == newItem.movie.backdropPath &&
+                    oldItem.movie.overview == newItem.movie.overview &&
+                    oldItem.movie.releaseDate == newItem.movie.releaseDate &&
+                    oldItem.movie.voteAverage == newItem.movie.voteAverage &&
+                    oldItem.movie.genres == newItem.movie.genres &&
+                    oldItem.movie.type == newItem.movie.type &&
+                    oldItem.isFavorite == newItem.isFavorite
+        } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
+            newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
+        ) {
+            oldItem.credit.name == newItem.credit.name &&
+                    oldItem.credit.profilePath == newItem.credit.profilePath
+        } else {
+            false
+        }
     }
 }
 
 sealed interface BrowseMovieLoadResult {
-    data class BrowseMovie(
-        val movie: Movie,
-        val isFavorite: Boolean = false,
-        val position: Int,
-        val category: String? = null,
-    ) : BrowseMovieLoadResult
+    sealed interface BrowseMovieLoadSuccess : BrowseMovieLoadResult {
+        data class BrowseMovie(
+            val movie: Movie,
+            val isFavorite: Boolean = false,
+            val position: Int,
+            val category: String? = null,
+        ) : BrowseMovieLoadSuccess
+
+        data class BrowseCredit(
+            val credit: Credit,
+            val position: Int
+        ) : BrowseMovieLoadSuccess
+    }
 
     data class BrowseMovieLoadError(
         val error: Throwable
@@ -355,11 +407,10 @@ class CardPresenter(width: Int) : Presenter() {
 
     override fun onBindViewHolder(viewHolder: ViewHolder?, item: Any?) {
         item?.let {
-
             val cardView = viewHolder?.view as ImageCardView
 
             when (item) {
-                is BrowseMovieLoadResult.BrowseMovie -> {
+                is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie -> {
 
                     cardView.titleText = item.movie.title
 
@@ -372,17 +423,31 @@ class CardPresenter(width: Int) : Presenter() {
                             R.drawable.ic_baseline_bookmark_24
                         )
 
-                    Glide.with(viewHolder.view.context)
-                        .load("https://image.tmdb.org/t/p/w500/${item.movie.posterPath}") // TODO:
-                        .centerCrop()
-                        .error(R.drawable.ic_baseline_broken_image_24)
-                        .into(cardView.mainImageView)
+                    item.movie.posterPath?.let {
+                        Glide.with(viewHolder.view.context)
+                            .load("https://image.tmdb.org/t/p/w500${item.movie.posterPath}") // TODO:
+                            .centerCrop()
+                            .error(R.drawable.ic_baseline_broken_image_24)
+                            .into(cardView.mainImageView)
+                    }
+                        ?: cardView.mainImageView.setImageResource(R.drawable.ic_baseline_cloud_off_24)
+                }
+                is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit -> {
+                    cardView.titleText = item.credit.name
+                    cardView.contentText =
+                        item.credit.knownFor.take(2).joinToString(", ") { it.title }
+
+                    item.credit.profilePath?.let {
+                        Glide.with(viewHolder.view.context)
+                            .load("https://image.tmdb.org/t/p/original${item.credit.profilePath}") // TODO:
+                            .centerCrop()
+                            .error(R.drawable.ic_baseline_broken_image_24)
+                            .into(cardView.mainImageView)
+                    }
+                        ?: cardView.mainImageView.setImageResource(R.drawable.ic_baseline_cloud_off_24)
                 }
                 is BrowseMovieLoadResult.BrowseMovieLoadError -> {
-                    Glide.with(viewHolder.view.context)
-                        .load(R.drawable.ic_baseline_broken_image_24) // TODO:
-                        .centerCrop()
-                        .into(cardView.mainImageView)
+                    cardView.mainImageView.setImageResource(R.drawable.ic_baseline_broken_image_24)
                 }
                 else -> {}
             }
@@ -395,27 +460,4 @@ class CardPresenter(width: Int) : Presenter() {
         cardView.badgeImage = null
         cardView.mainImage = null
     }
-}
-
-private class GridItemPresenter(size: Int) : Presenter() {
-
-    private val size = size / 6
-
-    override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
-        val view = TextView(parent.context)
-        view.layoutParams = ViewGroup.LayoutParams(size, size)
-        view.isFocusable = true
-        view.isFocusableInTouchMode = true
-        view.setBackgroundColor(Color.BLUE)
-        view.setTextColor(Color.WHITE)
-        view.gravity = Gravity.CENTER
-        return ViewHolder(view)
-    }
-
-    override fun onBindViewHolder(viewHolder: ViewHolder, item: Any) {
-        (viewHolder.view as TextView).text = item as String
-    }
-
-    override fun onUnbindViewHolder(viewHolder: ViewHolder) {}
-
 }

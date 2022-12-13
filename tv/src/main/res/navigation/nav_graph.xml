@@ -33,9 +33,8 @@
             android:name="movieType"
             app:argType="string" />
         <argument
-            android:name="category"
-            app:argType="string"
-            app:nullable="true" />
+            android:name="queryOrCategory"
+            app:argType="string" />
         <argument
             android:name="position"
             app:argType="integer"
@@ -44,6 +43,9 @@
             android:id="@+id/action_detailFragment_self"
             app:destination="@id/detailFragment"
             app:launchSingleTop="true" />
+        <argument
+            android:name="origin"
+            app:argType="com.shayo.moviesbeforetv.tv.DetailsOrigin" />
     </fragment>
     <fragment
         android:id="@+id/trailerPlayer"

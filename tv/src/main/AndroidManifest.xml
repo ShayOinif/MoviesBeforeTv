@@ -15,6 +15,7 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
+
     <application
         android:name=".MoviesApp"
         android:allowBackup="true"

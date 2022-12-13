@@ -10,6 +10,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.paging.PagingData
 import androidx.paging.map
 import com.shayo.movies.MovieManager
+import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -41,8 +42,8 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
         val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
 
-        val pagingAdapter: PagingDataAdapter<BrowseMovieLoadResult.BrowseMovie> = PagingDataAdapter(cardPresenter,
-            MovieDiff())
+        val pagingAdapter: PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess> = PagingDataAdapter(cardPresenter,
+            BrowseMovieLoadSuccessDiff())
 
         val header = HeaderItem("Search Results:")
 
@@ -58,12 +59,8 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                             movieManager.getSearchFlow(query, lifecycleScope),
                             movieManager.favoritesMap,
                         ) { page, favorites ->
-                            page.map {
-                                BrowseMovieLoadResult.BrowseMovie(
-                                    it,
-                                    favorites.containsKey(it.id),
-                                    0, // TODO:
-                                )
+                            page.map { pagedItem ->
+                                pagedItem.mapToBrowseResult(favorites)
                             }
                         }.collectLatest {
                             pagingAdapter.submitData(it)
@@ -74,15 +71,13 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         }
 
         setOnItemViewClickedListener { _, item, _, _ ->
-
-            with (item as BrowseMovieLoadResult.BrowseMovie) {
-                findNavController().navigate(MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(movie.id, movie.type, null))
+            if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie) {
+                findNavController().navigate(MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(item.movie.id, item.movie.type, query.value, DetailsOrigin.SEARCH, item.position))
             }
         }
 
         setOnItemViewSelectedListener { _, item, _, _ ->
-
-            if (item is BrowseMovieLoadResult.BrowseMovie) {
+            if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie) {
                 backgroundUpdateJob?.cancel()
 
                 backgroundUpdateJob = viewLifecycleOwner.lifecycleScope.launch {

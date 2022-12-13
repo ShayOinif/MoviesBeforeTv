@@ -13,7 +13,7 @@ import java.text.SimpleDateFormat
 interface MoviesRepository {
     suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse<Int>>
 
-    fun getCategoryFlow(type: String, category: String, position: Int): Flow<PagingData<PagedMovie>>
+    fun getCategoryFlow(type: String, category: String, position: Int): Flow<PagingData<PagedItem.PagedMovie>>
 
     suspend fun getMovieById(id: Int, type: String): Result<Movie>
 
@@ -48,7 +48,7 @@ internal class MoviesRepositoryImpl constructor(
         type: String,
         category: String,
         position: Int
-    ): Flow<PagingData<PagedMovie>> {
+    ): Flow<PagingData<PagedItem.PagedMovie>> {
         return Pager(
             config = PagingConfig(
                 pageSize = 20,
@@ -77,7 +77,7 @@ internal class MoviesRepositoryImpl constructor(
                             }
                         }
 
-                        PagedMovie(
+                        PagedItem.PagedMovie(
                             Movie(
                                 id,
                                 title,

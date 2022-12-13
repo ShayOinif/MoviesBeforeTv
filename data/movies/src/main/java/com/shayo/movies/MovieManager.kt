@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.shareIn
 
 interface MovieManager {
-    fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>>
+    fun getSearchFlow(query: String, scope: CoroutineScope, position: Int = 0): Flow<PagingData<PagedItem>>
 
     val favoritesMap: Flow<Map<Int, String>>
 
@@ -20,7 +20,7 @@ interface MovieManager {
 
     suspend fun toggleFavorite(movie: Movie)
 
-    fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int = 0): Flow<PagingData<PagedMovie>>
+    fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int = 0): Flow<PagingData<PagedItem.PagedMovie>>
 
     fun getDetailedMovieByIdFlow(id: Int, type: String): Flow<Movie?>
 }
@@ -33,23 +33,27 @@ internal class MovieManagerImpl(
 
     private val coroutineScope = CoroutineScope((SupervisorJob()))
 
-    override fun getSearchFlow(query: String, scope: CoroutineScope): Flow<PagingData<Movie>> {
+    override fun getSearchFlow(query: String, scope: CoroutineScope, position: Int): Flow<PagingData<PagedItem>> {
         return combine(
             Pager(
                 config = PagingConfig(
                     pageSize = 20,
                     initialLoadSize = 20,
                     maxSize = 200,
-                )
+                ),
+                initialKey = (position / 20) + 1
             ) {
-                MoviesPagingSource {
+                SearchPagingSource(position) {
                     moviesRepository.searchLoader(query, it)
                 }
             }.flow.cachedIn(scope),
             genreRepository.movieGenresFlow
         ) { moviePagingData, genres ->
             moviePagingData.map {
-                it.mapGenres(genres)
+                if (it is PagedItem.PagedMovie)
+                    it.copy(movie = it.movie.mapGenres(genres))
+                else
+                    it
             }
         }.cachedIn(scope)
     }
@@ -75,7 +79,7 @@ internal class MovieManagerImpl(
         favoritesRepository.toggleFavorite(movie.id, movie.type)
     }
 
-    override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int): Flow<PagingData<PagedMovie>> {
+    override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int): Flow<PagingData<PagedItem.PagedMovie>> {
         return combine(
             moviesRepository.getCategoryFlow(type, category, position).cachedIn(scope),
             genreRepository.movieGenresFlow

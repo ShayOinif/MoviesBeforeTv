@@ -12,22 +12,44 @@ import kotlin.coroutines.suspendCoroutine
 suspend fun loadDrawable(
     fragment: Fragment,
     url: String?,
+    crop: Boolean = false
 ) : Drawable? {
     return suspendCoroutine { cont ->
-        Glide.with(fragment)
-            .load(url)
-            .into(object : CustomTarget<Drawable>() {
-                override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                    cont.resume(resource)
-                }
+        if (crop) {
+            Glide.with(fragment)
+                .load(url)
+                .circleCrop()
+                .into(object : CustomTarget<Drawable>() {
+                    override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                        cont.resume(resource)
+                    }
 
-                override fun onLoadFailed(errorDrawable: Drawable?) {
-                    cont.resume(null)
-                }
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        cont.resume(null)
+                    }
 
-                // TODO:
-                override fun onLoadCleared(placeholder: Drawable?) {}
-            })
+                    // TODO:
+                    override fun onLoadCleared(placeholder: Drawable?) {}
+                })
+        } else {
+            Glide.with(fragment)
+                .load(url)
+                .into(object : CustomTarget<Drawable>() {
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        transition: Transition<in Drawable>?
+                    ) {
+                        cont.resume(resource)
+                    }
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        cont.resume(null)
+                    }
+
+                    // TODO:
+                    override fun onLoadCleared(placeholder: Drawable?) {}
+                })
+        }
     }
 }
 
