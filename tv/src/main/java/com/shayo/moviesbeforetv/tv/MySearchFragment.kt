@@ -11,10 +11,8 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.shayo.movies.MovieManager
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
@@ -30,6 +28,8 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
     @Inject
     lateinit var movieManager: MovieManager
+
+    private var backgroundUpdateJob: Job? = null
 
     @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,9 +83,13 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
         setOnItemViewSelectedListener { _, item, _, _ ->
 
             if (item is BrowseMovieLoadResult.BrowseMovie) {
-                viewLifecycleOwner.lifecycleScope.launch {
+                backgroundUpdateJob?.cancel()
+
+                backgroundUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
                     delay(1_000)
-                    backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                    if (isActive) {
+                        backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                    }
                 }
             }
         }

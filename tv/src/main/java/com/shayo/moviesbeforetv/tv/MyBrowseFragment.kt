@@ -25,9 +25,11 @@ import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -55,6 +57,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
     private lateinit var favoritesAdapter: ArrayObjectAdapter
 
     private lateinit var settingsAdapter: ArrayObjectAdapter
+
+    private var backgroundUpdateJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -255,9 +259,13 @@ class MyBrowseFragment : BrowseSupportFragment() {
         ) {
             when (item) {
                 is BrowseMovieLoadResult.BrowseMovie -> {
-                    viewLifecycleOwner.lifecycleScope.launch {
+                    backgroundUpdateJob?.cancel()
+
+                    backgroundUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
                         delay(1_000)
-                        backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                        if (isActive) {
+                            backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                        }
                     }
                 }
             }
