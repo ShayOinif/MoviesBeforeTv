@@ -3,7 +3,6 @@ package com.shayo.moviesbeforetv.tv.utils
 import com.shayo.movies.PagedItem
 import com.shayo.moviesbeforetv.tv.BrowseMovieLoadResult
 
-// Test commit
 internal fun PagedItem.mapToBrowseResult(favoritesMap: Map<Int, String>) =
     when (this) {
         is PagedItem.PagedMovie -> {

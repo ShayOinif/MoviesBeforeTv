@@ -5,15 +5,22 @@ import androidx.paging.*
 import com.shayo.moviepoint.db.*
 import com.shayo.network.MovieNetworkResponse
 import com.shayo.network.NetworkMovieDataSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 
 interface MoviesRepository {
     suspend fun searchLoader(query: String, page: Int): Result<MovieNetworkResponse<Int>>
 
-    fun getCategoryFlow(type: String, category: String, position: Int): Flow<PagingData<PagedItem.PagedMovie>>
+    fun getCategoryFlow(
+        type: String,
+        category: String,
+        position: Int
+    ): Flow<PagingData<PagedItem.PagedMovie>>
 
     suspend fun getMovieById(id: Int, type: String): Result<Movie>
 
@@ -40,7 +47,7 @@ internal class MoviesRepositoryImpl constructor(
         query: String,
         page: Int
     ): Result<MovieNetworkResponse<Int>> {
-        return networkMovieDataSource.searchMovies(query, page)
+        return withContext(Dispatchers.IO) { networkMovieDataSource.searchMovies(query, page) }
     }
 
     @OptIn(ExperimentalPagingApi::class)
@@ -95,43 +102,45 @@ internal class MoviesRepositoryImpl constructor(
                     } ?: throw Exception("Unknown Error") // TODO:
                 }
             }
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     // TODO: Insert new into db
     override suspend fun getMovieById(id: Int, type: String) =
-        localMoviesDataSource.getMovieById(id)?.let {
-            if (formatter.formatToInt(System.currentTimeMillis()) -
-                formatter.formatToInt(it.timeStamp) > 0
-            ) {
-                getByIdNetwork(type, id)
-            } else {
-                with(it) {
-                    val genres = genreIds.split(",").let {
-                        if (it.first().isEmpty()) {
-                            emptyList()
-                        } else {
-                            it.map { Genre(it.toInt(), "") }
+        withContext(Dispatchers.IO) {
+            localMoviesDataSource.getMovieById(id)?.let {
+                if (formatter.formatToInt(System.currentTimeMillis()) -
+                    formatter.formatToInt(it.timeStamp) > 0
+                ) {
+                    getByIdNetwork(type, id)
+                } else {
+                    with(it) {
+                        val genres = genreIds.split(",").let {
+                            if (it.first().isEmpty()) {
+                                emptyList()
+                            } else {
+                                it.map { Genre(it.toInt(), "") }
+                            }
                         }
-                    }
 
-                    Result.success(
-                        Movie(
-                            id,
-                            title,
-                            posterPath,
-                            backdropPath,
-                            overview,
-                            releaseDate,
-                            voteAverage,
-                            genres,
-                            type,
-                            runtime
+                        Result.success(
+                            Movie(
+                                id,
+                                title,
+                                posterPath,
+                                backdropPath,
+                                overview,
+                                releaseDate,
+                                voteAverage,
+                                genres,
+                                type,
+                                runtime
+                            )
                         )
-                    )
+                    }
                 }
-            }
-        } ?: getByIdNetwork(type, id)
+            } ?: getByIdNetwork(type, id)
+        }
 
     // TODO: Insert new into db
     override fun getDetailedMovieByIdFlow(id: Int, type: String) =

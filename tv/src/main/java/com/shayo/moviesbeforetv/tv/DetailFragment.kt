@@ -2,7 +2,6 @@ package com.shayo.moviesbeforetv.tv
 
 import android.os.Bundle
 import android.view.View
-import android.webkit.WebStorage.Origin
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.DetailsSupportFragment
@@ -34,9 +33,9 @@ class DetailFragment : DetailsSupportFragment() {
     @Inject
     lateinit var creditsRepository: CreditsRepository
 
-    private var trailer: String? = null
-
     private lateinit var backgroundViewModel: BackgroundViewModel
+
+    private var checkTrailer = true
 
     private lateinit var mAdapter: ArrayObjectAdapter
     private lateinit var actionAdapter: ArrayObjectAdapter
@@ -85,7 +84,7 @@ class DetailFragment : DetailsSupportFragment() {
                         androidx.leanback.paging.PagingDataAdapter(
                             cardPresenter,
                             BrowseMovieLoadSuccessDiff()
-                        ).also { moreRowAdapter =  it }
+                        ).also { moreRowAdapter = it }
                     }
                 )
             )
@@ -117,32 +116,35 @@ class DetailFragment : DetailsSupportFragment() {
         mPresenterSelector.addClassPresenter(DetailsOverviewRow::class.java, detailsPresenter)
         detailsPresenter.backgroundColor =
             ContextCompat.getColor(requireActivity(), R.color.brand_color)
-
-        lifecycleScope.launch {
-            val movieId = navArgs<DetailFragmentArgs>().value.movieId
-            val movieType = navArgs<DetailFragmentArgs>().value.movieType
-
-            videoRepository.getTrailer(movieType, movieId).onSuccess {
-                it?.apply {
-                    trailer = it.key
-
-                    actionAdapter.add(
-                        1,
-                        Action(
-                            0,
-                            "Watch Trailer",
-                            ""
-                        )
-                    )
-                }
-            }
-        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         viewLifecycleOwner.lifecycleScope.launch {
+
+            if (checkTrailer) {
+                launch {
+                    val movieId = navArgs<DetailFragmentArgs>().value.movieId
+                    val movieType = navArgs<DetailFragmentArgs>().value.movieType
+
+                    videoRepository.getTrailers(movieType, movieId).onSuccess { trailers ->
+                        if (trailers.isNotEmpty()) {
+                            actionAdapter.add(
+                                1,
+                                Action(
+                                    0,
+                                    resources.getQuantityString(R.plurals.trailers, trailers.size),
+                                    ""
+                                )
+                            )
+
+                            checkTrailer = false
+                        }
+                    }
+                }
+            }
+
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 val navArgs by navArgs<DetailFragmentArgs>()
 
@@ -211,8 +213,7 @@ class DetailFragment : DetailsSupportFragment() {
                                             0L -> {
                                                 findNavController().navigate(
                                                     DetailFragmentDirections.actionDetailFragmentToTrailerPlayer(
-                                                        trailer!!,
-                                                        movie
+                                                        movieId, movieType
                                                     )
                                                 )
                                             }

@@ -6,49 +6,56 @@ import androidx.fragment.app.FragmentActivity
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 suspend fun loadDrawable(
     fragment: Fragment,
     url: String?,
     crop: Boolean = false
-) : Drawable? {
-    return suspendCoroutine { cont ->
-        if (crop) {
-            Glide.with(fragment)
-                .load(url)
-                .circleCrop()
-                .into(object : CustomTarget<Drawable>() {
-                    override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                        cont.resume(resource)
-                    }
+): Drawable? {
+    return withContext(Dispatchers.IO) {
+        suspendCancellableCoroutine { cont ->
+            if (crop) {
+                Glide.with(fragment)
+                    .load(url)
+                    .circleCrop()
+                    .into(object : CustomTarget<Drawable>() {
+                        override fun onResourceReady(
+                            resource: Drawable,
+                            transition: Transition<in Drawable>?
+                        ) {
+                            cont.resume(resource)
+                        }
 
-                    override fun onLoadFailed(errorDrawable: Drawable?) {
-                        cont.resume(null)
-                    }
+                        override fun onLoadFailed(errorDrawable: Drawable?) {
+                            cont.resume(null)
+                        }
 
-                    // TODO:
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-                })
-        } else {
-            Glide.with(fragment)
-                .load(url)
-                .into(object : CustomTarget<Drawable>() {
-                    override fun onResourceReady(
-                        resource: Drawable,
-                        transition: Transition<in Drawable>?
-                    ) {
-                        cont.resume(resource)
-                    }
+                        // TODO:
+                        override fun onLoadCleared(placeholder: Drawable?) {}
+                    })
+            } else {
+                Glide.with(fragment)
+                    .load(url)
+                    .into(object : CustomTarget<Drawable>() {
+                        override fun onResourceReady(
+                            resource: Drawable,
+                            transition: Transition<in Drawable>?
+                        ) {
+                            cont.resume(resource)
+                        }
 
-                    override fun onLoadFailed(errorDrawable: Drawable?) {
-                        cont.resume(null)
-                    }
+                        override fun onLoadFailed(errorDrawable: Drawable?) {
+                            cont.resume(null)
+                        }
 
-                    // TODO:
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-                })
+                        // TODO:
+                        override fun onLoadCleared(placeholder: Drawable?) {}
+                    })
+            }
         }
     }
 }
@@ -56,21 +63,28 @@ suspend fun loadDrawable(
 suspend fun loadDrawable(
     activity: FragmentActivity,
     url: String?,
-) : Drawable? {
-    return suspendCoroutine { cont ->
-        Glide.with(activity)
-            .load(url)
-            .into(object : CustomTarget<Drawable>() {
-                override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                    cont.resume(resource)
-                }
+): Drawable? {
+    return withContext(Dispatchers.IO) {
+        suspendCancellableCoroutine { cont ->
+            Glide.with(activity)
+                .load(url)
+                .into(
+                    object : CustomTarget<Drawable>() {
+                        override fun onResourceReady(
+                            resource: Drawable,
+                            transition: Transition<in Drawable>?
+                        ) {
+                            cont.resume(resource)
+                        }
 
-                override fun onLoadFailed(errorDrawable: Drawable?) {
-                    cont.resume(null)
-                }
+                        override fun onLoadFailed(errorDrawable: Drawable?) {
+                            cont.resume(null)
+                        }
 
-                // TODO:
-                override fun onLoadCleared(placeholder: Drawable?) {}
-            })
+                        // TODO:
+                        override fun onLoadCleared(placeholder: Drawable?) {}
+                    }
+                )
+        }
     }
 }

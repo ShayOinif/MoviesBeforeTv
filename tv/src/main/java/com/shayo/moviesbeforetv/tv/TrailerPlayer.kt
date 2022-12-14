@@ -1,11 +1,6 @@
 package com.shayo.moviesbeforetv.tv
 
 import android.content.Context
-import android.content.res.Resources
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,7 +15,10 @@ import androidx.leanback.media.PlayerAdapter
 import androidx.leanback.widget.*
 import androidx.leanback.widget.PlaybackControlsRow.ThumbsAction.INDEX_OUTLINE
 import androidx.leanback.widget.PlaybackControlsRow.ThumbsAction.INDEX_SOLID
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
@@ -30,14 +28,12 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFram
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
+import com.shayo.movies.MoviesRepository
+import com.shayo.movies.VideoRepository
+import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -45,6 +41,14 @@ class TrailerPlayer : Fragment() {
 
     @Inject
     lateinit var movieManager: MovieManager
+
+    @Inject
+    lateinit var movieRepository: MoviesRepository
+
+    @Inject
+    lateinit var videoRepository: VideoRepository
+
+    private var initialSetup = true
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -61,33 +65,63 @@ class TrailerPlayer : Fragment() {
 
         viewLifecycleOwner.lifecycle.addObserver(player)
 
-        val videoId = navArgs<TrailerPlayerArgs>().value.youtubeId // TODO:
-        val movie = navArgs<TrailerPlayerArgs>().value.movie
-
-        val adapter = MyAdapter(videoId)
-
-        player.initialize(adapter, IFramePlayerOptions.Builder().controls(0).ivLoadPolicy(3).build())
+        val navArgs by navArgs<TrailerPlayerArgs>()
 
         val controls = view.findViewById<FragmentContainerView>(R.id.controls)
 
-        controls.getFragment<VideoFragment>().setMovie(adapter, movie) {
-            lifecycleScope.launch {
-                movieManager.toggleFavorite(movie)
-            }
-        }
+        if (initialSetup) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                launch {
+                    movieRepository.getMovieById(navArgs.movieId, navArgs.movieType).fold(
+                        onSuccess = { movie ->
+                            videoRepository.getTrailers(movie.type, movie.id).fold(
+                                onSuccess = { trailers ->
 
-        player.getYouTubePlayerWhenReady(object : YouTubePlayerCallback {
-            override fun onYouTubePlayer(youTubePlayer: YouTubePlayer) {
-                player.visibility = View.VISIBLE
-            }
-        })
+                                    val adapter = MyAdapter(trailers.map { video -> video.key })
 
-        lifecycleScope.launch {
-            movieManager.favoritesMap.collectLatest {
-                controls.getFragment<VideoFragment>().updateIsFavorite(it.containsKey(movie.id))
+                                    player.initialize(
+                                        adapter,
+                                        IFramePlayerOptions.Builder().controls(0).ivLoadPolicy(3)
+                                            .build()
+                                    )
+
+                                    controls.getFragment<VideoFragment>().setMovie(adapter, movie) {
+                                        viewLifecycleOwner.lifecycleScope.launch {
+                                            movieManager.toggleFavorite(movie)
+                                        }
+                                    }
+
+                                    viewLifecycleOwner.lifecycleScope.launch {
+                                        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                                            movieManager.favoritesMap.collectLatest {
+                                                controls.getFragment<VideoFragment>()
+                                                    .updateIsFavorite(it.containsKey(navArgs.movieId))
+                                            }
+                                        }
+                                    }
+
+                                    player.getYouTubePlayerWhenReady(object :
+                                        YouTubePlayerCallback {
+                                        override fun onYouTubePlayer(youTubePlayer: YouTubePlayer) {
+                                            player.visibility = View.VISIBLE
+                                        }
+                                    })
+                                },
+                                onFailure = ::navToError,
+                            )
+                        },
+                        onFailure = ::navToError,
+                    )
+                }
             }
         }
     }
+}
+
+private fun TrailerPlayer.navToError(error: Throwable) {
+    findNavController().navigate(
+        TrailerPlayerDirections.actionTrailerPlayerToErrorFragment(message = error.message ?: "Unknown")
+    )
 }
 
 class MyCustomDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
@@ -107,6 +141,9 @@ private class MyGlue<T: PlayerAdapter>(
     private val watchlistCallback: () -> Unit
 ) : PlaybackTransportControlGlue<T>(context,impl) {
     private val thumbsUpAction = PlaybackControlsRow.ThumbsUpAction(context)
+    private val skipPreviousAction = PlaybackControlsRow.SkipPreviousAction(context)
+    private val skipNextAction = PlaybackControlsRow.SkipNextAction(context)
+
 
     override fun onCreateRowPresenter(): PlaybackRowPresenter {
         return super.onCreateRowPresenter().apply {
@@ -120,8 +157,17 @@ private class MyGlue<T: PlayerAdapter>(
         // Will display as follows:
         // play/pause, previous, rewind, fast forward, next
         //   > /||      |<        <<        >>         >|
-        super.onCreatePrimaryActions(primaryActionsAdapter)
+
         primaryActionsAdapter.apply {
+            add(skipPreviousAction)
+            super.onCreatePrimaryActions(primaryActionsAdapter)
+            add(skipNextAction)
+        }
+    }
+
+    override fun onCreateSecondaryActions(adapter: ArrayObjectAdapter?) {
+        super.onCreateSecondaryActions(adapter)
+        adapter?.apply {
             add(thumbsUpAction)
         }
     }
@@ -160,14 +206,13 @@ class VideoFragment : PlaybackSupportFragment() {
 
         playerGlue?.host = PlaybackSupportFragmentGlueHost(this)
 
-        playerGlue?.title = "${movie.title} Trailer"
+        playerGlue?.title = "${movie.title} Trailers"
 
         playerGlue?.subtitle = movie.overview
 
         movie.posterPath?.let {
             lifecycleScope.launch {
-                playerGlue?.art =
-                    drawableFromUrl("https://image.tmdb.org/t/p/w500${movie.posterPath}")
+                playerGlue?.art = loadDrawable(this@VideoFragment, "https://image.tmdb.org/t/p/w500${movie.posterPath}")
             }
         }
 
@@ -180,18 +225,6 @@ class VideoFragment : PlaybackSupportFragment() {
                 }
             }
         })
-    }
-
-    // TODO: Move to utils, in use for user photo
-    private suspend fun drawableFromUrl(url: String): Drawable {
-        return withContext(Dispatchers.IO) {
-            val x: Bitmap
-            val connection: HttpURLConnection = URL(url).openConnection() as HttpURLConnection
-            connection.connect()
-            val input: InputStream = connection.inputStream
-            x = BitmapFactory.decodeStream(input)
-            BitmapDrawable(Resources.getSystem(), x)
-        }
     }
 }
 
@@ -206,7 +239,7 @@ private class MySeekProvider(duration: Long) : PlaybackSeekDataProvider() {
     }
 }
 
-class MyAdapter(private val videoId: String) : PlayerAdapter(), YouTubePlayerListener {
+class MyAdapter(private val videoIds: List<String>) : PlayerAdapter(), YouTubePlayerListener {
 
     private var youtubePlayer: YouTubePlayer? = null
 
@@ -215,6 +248,8 @@ class MyAdapter(private val videoId: String) : PlayerAdapter(), YouTubePlayerLis
     private var playing: Boolean = false
     private var buffered: Float = 0F
     private var ready = false
+
+    private var currentPosition = 0
 
     override fun play() {
         youtubePlayer?.play()
@@ -257,9 +292,27 @@ class MyAdapter(private val videoId: String) : PlayerAdapter(), YouTubePlayerLis
     override fun onReady(youTubePlayer: YouTubePlayer) {
 
         this.youtubePlayer = youTubePlayer
-        youTubePlayer.loadVideo(videoId, 0F)
+        youTubePlayer.loadVideo(videoIds.first(), 0F)
         ready = true
         callback.onPreparedStateChanged(this)
+    }
+
+    override fun next() {
+        super.next()
+
+        if (videoIds.size - 1 > currentPosition) {
+            youtubePlayer?.loadVideo(videoIds[++currentPosition], 0F)
+        }
+    }
+
+    override fun previous() {
+        super.previous()
+
+        if (currentPosition > 0) {
+            youtubePlayer?.loadVideo(videoIds[--currentPosition], 0F)
+        } else {
+            seekTo(0)
+        }
     }
 
     override fun isPlaying(): Boolean {
@@ -281,7 +334,12 @@ class MyAdapter(private val videoId: String) : PlayerAdapter(), YouTubePlayerLis
             }
             PlayerConstants.PlayerState.ENDED -> {
                 playing = false
-                callback.onPlayCompleted(this)
+
+                if (currentPosition < videoIds.size - 1) {
+                    next()
+                } else {
+                    callback.onPlayCompleted(this)
+                }
             }
             else -> {}
         }

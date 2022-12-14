@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Movies Point</string>
+    <string name="dismiss_error">Ok</string>
+    <plurals name="trailers">
+        <item quantity="one">Watch Trailer</item>
+        <item quantity="other">Watch Trailers</item>
+    </plurals>
 </resources>

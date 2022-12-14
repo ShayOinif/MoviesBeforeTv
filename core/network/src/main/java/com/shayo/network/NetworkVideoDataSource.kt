@@ -5,7 +5,7 @@ import retrofit2.HttpException
 import java.io.IOException
 
 interface NetworkVideoDataSource {
-    suspend fun getTrailer(type: String, movieId: Int): Result<NetworkVideo?>
+    suspend fun getTrailer(type: String, movieId: Int): Result<List<NetworkVideo>>
 }
 
 internal class NetworkVideoDataSourceImpl constructor(
@@ -14,9 +14,9 @@ internal class NetworkVideoDataSourceImpl constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun getTrailer(type: String, movieId: Int): Result<NetworkVideo?> {
+    override suspend fun getTrailer(type: String, movieId: Int): Result<List<NetworkVideo>> {
         return try {
-            Result.success(videoNetworkService.getMoviesGenres(type, movieId).results.firstOrNull {
+            Result.success(videoNetworkService.getMoviesGenres(type, movieId).results.filter {
                 it.official && it.type == "Trailer" && it.site == "YouTube"
             })
         } catch (ioException: IOException) {

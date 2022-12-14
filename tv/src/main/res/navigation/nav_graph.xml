@@ -52,11 +52,15 @@
         android:name="com.shayo.moviesbeforetv.tv.TrailerPlayer"
         android:label="TrailerPlayer" >
         <argument
-            android:name="youtubeId"
-            app:argType="string" />
+            android:name="movieId"
+            app:argType="integer" />
         <argument
-            android:name="movie"
-            app:argType="com.shayo.movies.Movie" />
+            android:name="movieType"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_trailerPlayer_to_errorFragment"
+            app:destination="@id/errorFragment"
+            app:popUpTo="@id/detailFragment" />
     </fragment>
     <fragment
         android:id="@+id/mySearchFragment"
@@ -71,4 +75,12 @@
         android:id="@+id/loginFragment"
         android:name="com.shayo.moviesbeforetv.tv.LoginFragment"
         android:label="LoginFragment" />
+    <fragment
+        android:id="@+id/errorFragment"
+        android:name="com.shayo.moviesbeforetv.tv.ErrorFragment"
+        android:label="ErrorFragment" >
+        <argument
+            android:name="message"
+            app:argType="string" />
+    </fragment>
 </navigation>

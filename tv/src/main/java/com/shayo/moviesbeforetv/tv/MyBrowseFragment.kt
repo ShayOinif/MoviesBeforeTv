@@ -302,12 +302,19 @@ class MyBrowseFragment : BrowseSupportFragment() {
             } else if (item is SettingsCardType) {
                 if (item is SettingsCardType.Account) {
                     viewLifecycleOwner.lifecycleScope.launch {
+
                         userRepository.getCurrentUser()?.photoUrl?.toString()?.let {
+
+                            progressBarManager.show()
+
                             activityViewModels<UserImageViewModel>().value.userImage = loadDrawable(
                                 this@MyBrowseFragment,
                                 it
                             )
+
+                            progressBarManager.hide()
                         }
+
                         findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
                     }
                 }
