@@ -156,7 +156,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
                                     favorites.containsKey(it.movie.id),
                                     it.position,
                                     category,
-                                )
+                                ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
                             }
                         }.collectLatest {
                             categoriesAdapters[index].submitData(it)
@@ -442,7 +442,7 @@ class CardPresenter(width: Int) : Presenter() {
                 is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit -> {
                     cardView.titleText = item.credit.name
                     cardView.contentText =
-                        item.credit.knownFor.take(2).joinToString(", ") { it.title }
+                        "${item.credit.knownFor.take(2).joinToString(", ") { it.title }}${item.credit.description}"
 
                     item.credit.profilePath?.let {
                         Glide.with(viewHolder.view.context)

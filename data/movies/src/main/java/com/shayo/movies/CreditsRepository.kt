@@ -18,7 +18,7 @@ class CreditsRepositoryImpl(
         return networkCreditsDataSource.getCredits(type, id)
             .map { response ->
                 TopCastAndDirector(
-                    cast = response.cast.take(4).map { networkCredit ->
+                    cast = response.cast.map { networkCredit ->
                         with(networkCredit) {
                             Credit(
                                 id,

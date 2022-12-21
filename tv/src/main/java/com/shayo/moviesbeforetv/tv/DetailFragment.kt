@@ -41,6 +41,7 @@ class DetailFragment : DetailsSupportFragment() {
     private lateinit var detailsPresenter: FullWidthDetailsOverviewRowPresenter
     private val detailsRow = DetailsOverviewRow(Object())
     private lateinit var moreRowAdapter: androidx.leanback.paging.PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess>
+    private lateinit var castRowAdapter: ArrayObjectAdapter
 
     // TODO: Create paging from favorites and then we won't have to handle it differently
     private lateinit var favoritesAdapter: ArrayObjectAdapter
@@ -73,6 +74,13 @@ class DetailFragment : DetailsSupportFragment() {
         val header = HeaderItem("Browse More:")
 
         CardPresenter(resources.displayMetrics.widthPixels).let { cardPresenter ->
+            mAdapter.add(
+                ListRow(
+                    HeaderItem("Full cast:"),
+                    ArrayObjectAdapter(cardPresenter).also { castRowAdapter = it }
+                )
+            )
+
             mAdapter.add(
                 ListRow(
                     header,
@@ -160,7 +168,20 @@ class DetailFragment : DetailsSupportFragment() {
                 val position = navArgs<DetailFragmentArgs>().value.position
 
                 // TODO: Make cache for credits so in won't fetch from network again and again
-                val topCastAndDirector = creditsRepository.getCredits(movieType, movieId)
+                val topCastAndDirector = creditsRepository.getCredits(movieType, movieId).fold(
+                    onSuccess = {
+                        it
+                    },
+                    onFailure = {
+                        null
+                    }
+                )
+
+                castRowAdapter.addAll(0, topCastAndDirector?.cast?.mapIndexed { index, credit ->
+                    BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit(
+                        credit, index
+                    )
+                })
 
                 launch {
                     moviesManager.getDetailedMovieByIdFlow(movieId, movieType)
@@ -176,14 +197,7 @@ class DetailFragment : DetailsSupportFragment() {
                                         genres,
                                         runtime,
                                         overview,
-                                        topCastAndDirector.fold(
-                                            onSuccess = {
-                                                it
-                                            },
-                                            onFailure = {
-                                                null
-                                            }
-                                        ),
+                                        topCastAndDirector,
                                         releaseDate
                                     )
                                 }
@@ -227,7 +241,7 @@ class DetailFragment : DetailsSupportFragment() {
                                         it.movie,
                                         favorites.containsKey(it.movie.id),
                                         it.position
-                                    )
+                                    ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
                                 }
                             }.collectLatest {
                                 moreRowAdapter.submitData(it)
@@ -307,7 +321,13 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
 
             viewHolder.subtitle.text = "${movie.releaseDate}\n${movie.voteAverage}/10\n" +
                     "${movie.genres.joinToString(" - ") { it.name }}\n${movie.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
-                    "${movie.topCastAndDirector?.let { "Cast: ${it.cast.joinToString(", ") { it.name }}${it.director?.name?.let { "\nDirector: $it" } ?: ""}" }}"
+                    "${
+                        movie.topCastAndDirector?.let {
+                            "Cast: ${
+                                it.cast.take(4).joinToString(", ") { it.name }
+                            }${it.director?.name?.let { "\nDirector: $it" } ?: ""}"
+                        }
+                    }"
 
             viewHolder.body.text = movie.overview
             viewHolder.body.textScaleX = 1.1F
