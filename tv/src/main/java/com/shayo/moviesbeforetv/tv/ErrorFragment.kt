@@ -14,7 +14,10 @@ class ErrorFragment : ErrorSupportFragment() {
         title = resources.getString(R.string.app_name)
 
         imageDrawable =
-            ContextCompat.getDrawable(requireActivity(), androidx.leanback.R.drawable.lb_ic_sad_cloud)
+            ContextCompat.getDrawable(
+                requireActivity(),
+                androidx.leanback.R.drawable.lb_ic_sad_cloud
+            )
         message = "Error: ${navArgs<ErrorFragmentArgs>().value.message}"
 
         setDefaultBackground(true)

@@ -8,7 +8,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 interface LocalMovieCategoryDataSource {
-    fun getCategoryPaging(type: String, category: String, position: Int): PagingSource<Int, MovieCategory>
+    fun getCategoryPaging(
+        type: String,
+        category: String,
+        position: Int
+    ): PagingSource<Int, MovieCategory>
 
     suspend fun addMovie(movieCategory: MovieCategory)
 
@@ -31,7 +35,11 @@ class LocalMovieCategoryDataSourceImpl(
     @SuppressLint("SimpleDateFormat")
     private val formatter = SimpleDateFormat("yyyyMMdd")
 
-    override fun getCategoryPaging(type: String, category: String, position: Int): PagingSource<Int, MovieCategory> {
+    override fun getCategoryPaging(
+        type: String,
+        category: String,
+        position: Int
+    ): PagingSource<Int, MovieCategory> {
         return movieCategoryDao.getCategoryPaging(type, category, position)
     }
 

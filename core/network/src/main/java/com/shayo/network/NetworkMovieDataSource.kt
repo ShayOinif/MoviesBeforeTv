@@ -5,7 +5,11 @@ import retrofit2.HttpException
 import java.io.IOException
 
 interface NetworkMovieDataSource {
-    suspend fun getMovies(type: String, category: String, page: Int = 1): Result<MovieNetworkResponse<Int>>
+    suspend fun getMovies(
+        type: String,
+        category: String,
+        page: Int = 1
+    ): Result<MovieNetworkResponse<Int>>
 
     suspend fun searchMovies(query: String, page: Int = 1): Result<MovieNetworkResponse<Int>>
 
@@ -21,7 +25,11 @@ internal class NetworkMovieDataSourceImpl constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun getMovies(type: String, category: String /* TODO */, page: Int): Result<MovieNetworkResponse<Int>> {
+    override suspend fun getMovies(
+        type: String,
+        category: String /* TODO */,
+        page: Int
+    ): Result<MovieNetworkResponse<Int>> {
         return try {
             Result.success(movieNetworkService.getMovies(type, category, page))
         } catch (ioException: IOException) {

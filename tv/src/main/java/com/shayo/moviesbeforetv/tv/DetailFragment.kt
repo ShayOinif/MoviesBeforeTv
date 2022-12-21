@@ -1,7 +1,7 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.graphics.Color
 import android.os.Bundle
-import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.DetailsSupportFragment
@@ -34,8 +34,6 @@ class DetailFragment : DetailsSupportFragment() {
     lateinit var creditsRepository: CreditsRepository
 
     private lateinit var backgroundViewModel: BackgroundViewModel
-
-    private var checkTrailer = true
 
     private lateinit var mAdapter: ArrayObjectAdapter
     private lateinit var actionAdapter: ArrayObjectAdapter
@@ -116,40 +114,49 @@ class DetailFragment : DetailsSupportFragment() {
         mPresenterSelector.addClassPresenter(DetailsOverviewRow::class.java, detailsPresenter)
         detailsPresenter.backgroundColor =
             ContextCompat.getColor(requireActivity(), R.color.brand_color)
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+        val movieId = navArgs<DetailFragmentArgs>().value.movieId
+        val movieType = navArgs<DetailFragmentArgs>().value.movieType
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        detailsPresenter.onActionClickedListener =
+            OnActionClickedListener { action ->
+                when (action.id) {
 
-            if (checkTrailer) {
-                launch {
-                    val movieId = navArgs<DetailFragmentArgs>().value.movieId
-                    val movieType = navArgs<DetailFragmentArgs>().value.movieType
-
-                    videoRepository.getTrailers(movieType, movieId).onSuccess { trailers ->
-                        if (trailers.isNotEmpty()) {
-                            actionAdapter.add(
-                                1,
-                                Action(
-                                    0,
-                                    resources.getQuantityString(R.plurals.trailers, trailers.size),
-                                    ""
-                                )
-                            )
-
-                            checkTrailer = false
+                    1L -> {
+                        lifecycleScope.launch {
+                            moviesManager.toggleFavorite(movieId, movieType)
                         }
+                    }
+                    0L -> {
+                        findNavController().navigate(
+                            DetailFragmentDirections.actionDetailFragmentToTrailerPlayer(
+                                movieId, movieType
+                            )
+                        )
                     }
                 }
             }
 
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                val navArgs by navArgs<DetailFragmentArgs>()
 
-                val movieId = navArgs<DetailFragmentArgs>().value.movieId
-                val movieType = navArgs<DetailFragmentArgs>().value.movieType
+        lifecycleScope.launch {
+
+            launch {
+                videoRepository.getTrailers(movieType, movieId).onSuccess { trailers ->
+                    if (trailers.isNotEmpty()) {
+                        actionAdapter.add(
+                            1,
+                            Action(
+                                0,
+                                resources.getQuantityString(R.plurals.trailers, trailers.size),
+                                ""
+                            )
+                        )
+                    }
+                }
+            }
+
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+
                 val position = navArgs<DetailFragmentArgs>().value.position
 
                 // TODO: Make cache for credits so in won't fetch from network again and again
@@ -186,8 +193,6 @@ class DetailFragment : DetailsSupportFragment() {
                                     "https://image.tmdb.org/t/p/w500/${movie.posterPath}"
                                 )
 
-                                mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size())
-
                                 watchListAction.label1 = if (movie.isFavorite) {
                                     "Remove From Watchlist"
                                 } else {
@@ -199,26 +204,6 @@ class DetailFragment : DetailsSupportFragment() {
                                 )
 
                                 detailsRow.actionsAdapter = actionAdapter
-
-                                // TODO: could be removed from collect once the trailer fragment works only with ids
-                                detailsPresenter.onActionClickedListener =
-                                    OnActionClickedListener { action ->
-                                        when (action.id) {
-
-                                            1L -> {
-                                                lifecycleScope.launch {
-                                                    moviesManager.toggleFavorite(movie)
-                                                }
-                                            }
-                                            0L -> {
-                                                findNavController().navigate(
-                                                    DetailFragmentDirections.actionDetailFragmentToTrailerPlayer(
-                                                        movieId, movieType
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    }
 
                                 adapter = mAdapter
                             }
@@ -242,7 +227,7 @@ class DetailFragment : DetailsSupportFragment() {
                                         it.movie,
                                         favorites.containsKey(it.movie.id),
                                         it.position
-                                    ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
+                                    )
                                 }
                             }.collectLatest {
                                 moreRowAdapter.submitData(it)
@@ -314,7 +299,7 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
         item: Any?
     ) {
         if (item is DetailedMovie) {
-            val movie = item as DetailedMovie
+            val movie = item
 
             viewHolder.title.text = movie.title
 
@@ -325,6 +310,8 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
                     "${movie.topCastAndDirector?.let { "Cast: ${it.cast.joinToString(", ") { it.name }}${it.director?.name?.let { "\nDirector: $it" } ?: ""}" }}"
 
             viewHolder.body.text = movie.overview
+            viewHolder.body.textScaleX = 1.1F
+            viewHolder.body.setTextColor(Color.WHITE)
         }
     }
 }

@@ -42,8 +42,11 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
         val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
 
-        val pagingAdapter: PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess> = PagingDataAdapter(cardPresenter,
-            BrowseMovieLoadSuccessDiff())
+        val pagingAdapter: PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess> =
+            PagingDataAdapter(
+                cardPresenter,
+                BrowseMovieLoadSuccessDiff()
+            )
 
         val header = HeaderItem("Search Results:")
 
@@ -72,7 +75,15 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
 
         setOnItemViewClickedListener { _, item, _, _ ->
             if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie) {
-                findNavController().navigate(MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(item.movie.id, item.movie.type, query.value, DetailsOrigin.SEARCH, item.position))
+                findNavController().navigate(
+                    MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(
+                        item.movie.id,
+                        item.movie.type,
+                        query.value,
+                        DetailsOrigin.SEARCH,
+                        item.position
+                    )
+                )
             }
         }
 

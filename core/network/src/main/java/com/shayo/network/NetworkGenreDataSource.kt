@@ -13,7 +13,7 @@ internal class NetworkGenreDataSourceImpl constructor(
 ) : NetworkGenreDataSource {
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun getMoviesGenres(): Result<List<NetworkGenre>>{
+    override suspend fun getMoviesGenres(): Result<List<NetworkGenre>> {
         return try {
 
             val movies = genreNetworkService.getMoviesGenres("movie").genres

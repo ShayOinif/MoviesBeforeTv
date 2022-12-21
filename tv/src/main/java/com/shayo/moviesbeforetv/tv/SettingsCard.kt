@@ -40,7 +40,8 @@ internal class SettingsCard(width: Int) : Presenter() {
                         .load(it)
                         .centerCrop()
                         .into(cardView.mainImageView)
-                } ?: cardView.mainImageView.setImageResource(R.drawable.ic_baseline_account_circle_24)
+                }
+                    ?: cardView.mainImageView.setImageResource(R.drawable.ic_baseline_account_circle_24)
             }
         }
     }

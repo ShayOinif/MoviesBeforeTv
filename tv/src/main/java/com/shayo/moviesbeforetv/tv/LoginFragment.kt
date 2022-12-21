@@ -12,7 +12,6 @@ import androidx.navigation.fragment.findNavController
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
-import com.google.android.gms.auth.api.credentials.CredentialPickerConfig.Prompt.CONTINUE
 import com.shayo.movies.UserRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -44,7 +43,7 @@ class LoginFragment : GuidedStepSupportFragment() {
             "Hello!",
             "Would you like to login/signup?",
             "You are not logged in",
-            ContextCompat.getDrawable(requireContext(),R.drawable.ic_baseline_account_circle_24)
+            ContextCompat.getDrawable(requireContext(), R.drawable.ic_baseline_account_circle_24)
         )
     }
 

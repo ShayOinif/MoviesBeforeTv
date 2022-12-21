@@ -21,7 +21,7 @@ object NetworkModule {
             .build()
 
     @Provides
-    fun provideNetworkMovieDataSource(retrofit: Retrofit): NetworkMovieDataSource=
+    fun provideNetworkMovieDataSource(retrofit: Retrofit): NetworkMovieDataSource =
         NetworkMovieDataSourceImpl(
             retrofit.create(MovieNetworkService::class.java)
         )

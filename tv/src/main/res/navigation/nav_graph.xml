@@ -7,7 +7,7 @@
     <fragment
         android:id="@+id/myBrowseFragment"
         android:name="com.shayo.moviesbeforetv.tv.MyBrowseFragment"
-        android:label="MyBrowseFragment" >
+        android:label="MyBrowseFragment">
         <action
             android:id="@+id/action_myBrowseFragment_to_detailFragment"
             app:destination="@id/detailFragment"
@@ -22,7 +22,7 @@
     <fragment
         android:id="@+id/detailFragment"
         android:name="com.shayo.moviesbeforetv.tv.DetailFragment"
-        android:label="DetailFragment" >
+        android:label="DetailFragment">
         <argument
             android:name="movieId"
             app:argType="integer" />
@@ -37,8 +37,8 @@
             app:argType="string" />
         <argument
             android:name="position"
-            app:argType="integer"
-            android:defaultValue="0" />
+            android:defaultValue="0"
+            app:argType="integer" />
         <action
             android:id="@+id/action_detailFragment_self"
             app:destination="@id/detailFragment"
@@ -50,7 +50,7 @@
     <fragment
         android:id="@+id/trailerPlayer"
         android:name="com.shayo.moviesbeforetv.tv.TrailerPlayer"
-        android:label="TrailerPlayer" >
+        android:label="TrailerPlayer">
         <argument
             android:name="movieId"
             app:argType="integer" />
@@ -65,7 +65,7 @@
     <fragment
         android:id="@+id/mySearchFragment"
         android:name="com.shayo.moviesbeforetv.tv.MySearchFragment"
-        android:label="MySearchFragment" >
+        android:label="MySearchFragment">
         <action
             android:id="@+id/action_mySearchFragment_to_detailFragment"
             app:destination="@id/detailFragment"
@@ -78,7 +78,7 @@
     <fragment
         android:id="@+id/errorFragment"
         android:name="com.shayo.moviesbeforetv.tv.ErrorFragment"
-        android:label="ErrorFragment" >
+        android:label="ErrorFragment">
         <argument
             android:name="message"
             app:argType="string" />

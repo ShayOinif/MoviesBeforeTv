@@ -15,7 +15,8 @@ internal open class SearchPagingSource(
         params: LoadParams<Int>
     ): LoadResult<Int, PagedItem> {
         // Start refresh at page 1 if undefined.
-        val nextPageNumber = params.key ?: 1 // TODO: Check against afterPosition and consider ramifications in larger scales
+        val nextPageNumber = params.key
+            ?: 1 // TODO: Check against afterPosition and consider ramifications in larger scales
 
         val result = loadingFun(nextPageNumber)
 

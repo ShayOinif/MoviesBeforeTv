@@ -17,12 +17,13 @@ class ClearOldCacheWorker @AssistedInject constructor(
     private val moviesRepository: MoviesRepository,
     private val favoritesRepository: FavoritesRepository,
     private val userRepository: UserRepository,
-): CoroutineWorker(appContext, workerParams) {
+) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
 
         moviesRepository.deleteOldMovies(
             moviesRepository.getCategorizedMoviesIds()
-                .plus(favoritesRepository.getAllFavoritesIds(userRepository.getCurrentUser()?.email)).associateBy {
+                .plus(favoritesRepository.getAllFavoritesIds(userRepository.getCurrentUser()?.email))
+                .associateBy {
                     it
                 }.mapValues<Int, Int, Void?> { null }
         )

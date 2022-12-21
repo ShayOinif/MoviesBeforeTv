@@ -88,8 +88,7 @@ class CategoryMediator(
     }
 
     override suspend fun initialize(): InitializeAction {
-        return if (localMovieCategoryDataSource.isUpdateNeeded(type, category))
-        {
+        return if (localMovieCategoryDataSource.isUpdateNeeded(type, category)) {
             InitializeAction.LAUNCH_INITIAL_REFRESH
         } else {
             InitializeAction.SKIP_INITIAL_REFRESH

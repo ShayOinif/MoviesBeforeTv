@@ -28,7 +28,7 @@ object MoviesModule {
         firestoreFavoritesDataSource: FirestoreFavoritesDataSource,
         localFavoritesDataSource: LocalFavoritesDataSource,
     ): FavoritesRepository =
-        FavoritesRepositoryImpl(localFavoritesDataSource, firestoreFavoritesDataSource,)
+        FavoritesRepositoryImpl(localFavoritesDataSource, firestoreFavoritesDataSource)
 
     @Provides
     fun provideMoviesRepository(
@@ -36,10 +36,17 @@ object MoviesModule {
         localMovieCategoryDataSource: LocalMovieCategoryDataSource,
         localMoviesDataSource: LocalMoviesDataSource,
     ): MoviesRepository =
-        MoviesRepositoryImpl(networkMovieDataSource, localMovieCategoryDataSource, localMoviesDataSource)
+        MoviesRepositoryImpl(
+            networkMovieDataSource,
+            localMovieCategoryDataSource,
+            localMoviesDataSource
+        )
 
     @Provides
-    fun provideGenresRepository(networkGenreDataSource: NetworkGenreDataSource, localGenresDataSource: LocalGenresDataSource): GenreRepository =
+    fun provideGenresRepository(
+        networkGenreDataSource: NetworkGenreDataSource,
+        localGenresDataSource: LocalGenresDataSource
+    ): GenreRepository =
         GenreRepositoryImpl(networkGenreDataSource, localGenresDataSource)
 
     @Provides

@@ -14,7 +14,8 @@ interface UserRepository {
     fun getCurrentUser(): User?
 }
 
-internal class UserRepositoryImpl(private val userDataSource: UserDataSource = UserDataSource.getUserDataSource()) : UserRepository {
+internal class UserRepositoryImpl(private val userDataSource: UserDataSource = UserDataSource.getUserDataSource()) :
+    UserRepository {
     override val currentAuthUserFlow = userDataSource.currentUserFlow
         .map { currentUser ->
             currentUser?.run { User(displayName, email, photoUrl) }

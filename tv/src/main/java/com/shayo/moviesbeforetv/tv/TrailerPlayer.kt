@@ -87,7 +87,7 @@ class TrailerPlayer : Fragment() {
 
                                     controls.getFragment<VideoFragment>().setMovie(adapter, movie) {
                                         viewLifecycleOwner.lifecycleScope.launch {
-                                            movieManager.toggleFavorite(movie)
+                                            movieManager.toggleFavorite(movie.id, movie.type)
                                         }
                                     }
 
@@ -120,7 +120,9 @@ class TrailerPlayer : Fragment() {
 
 private fun TrailerPlayer.navToError(error: Throwable) {
     findNavController().navigate(
-        TrailerPlayerDirections.actionTrailerPlayerToErrorFragment(message = error.message ?: "Unknown")
+        TrailerPlayerDirections.actionTrailerPlayerToErrorFragment(
+            message = error.message ?: "Unknown"
+        )
     )
 }
 
@@ -135,11 +137,11 @@ class MyCustomDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
     }
 }
 
-private class MyGlue<T: PlayerAdapter>(
+private class MyGlue<T : PlayerAdapter>(
     context: Context?,
     impl: T,
     private val watchlistCallback: () -> Unit
-) : PlaybackTransportControlGlue<T>(context,impl) {
+) : PlaybackTransportControlGlue<T>(context, impl) {
     private val thumbsUpAction = PlaybackControlsRow.ThumbsUpAction(context)
     private val skipPreviousAction = PlaybackControlsRow.SkipPreviousAction(context)
     private val skipNextAction = PlaybackControlsRow.SkipNextAction(context)
@@ -173,7 +175,7 @@ private class MyGlue<T: PlayerAdapter>(
     }
 
     override fun onActionClicked(action: Action) {
-        when(action) {
+        when (action) {
             thumbsUpAction -> {
                 watchlistCallback()
             }
@@ -204,15 +206,34 @@ class VideoFragment : PlaybackSupportFragment() {
             watchlistCallback
         )
 
-        playerGlue?.host = PlaybackSupportFragmentGlueHost(this)
+        adapter.getCurrentListPosition { current, total ->
+            playerGlue?.title = "${movie.title} Trailer $current out of $total"
 
-        playerGlue?.title = "${movie.title} Trailers"
+            // TODO: Figure out why it does not update the watch next channel
+            /*val builder = WatchNextProgram.Builder()
+            builder
+                .setWatchNextType(TvContractCompat.WatchNextPrograms.WATCH_NEXT_TYPE_NEXT)
+                .setTitle("Title")
+                .setDescription("Program description")
+                .setPosterArtUri(Uri.parse("https://image.tmdb.org/t/p/w500${movie.posterPath}"))
+
+            val watchNextProgramUri = context?.contentResolver?.insert(
+                TvContractCompat.WatchNextPrograms.CONTENT_URI,
+                builder.build().toContentValues())
+
+            Log.d("MyTAg", "$watchNextProgramUri")*/
+        }
+
+        playerGlue?.host = PlaybackSupportFragmentGlueHost(this)
 
         playerGlue?.subtitle = movie.overview
 
         movie.posterPath?.let {
             lifecycleScope.launch {
-                playerGlue?.art = loadDrawable(this@VideoFragment, "https://image.tmdb.org/t/p/w500${movie.posterPath}")
+                playerGlue?.art = loadDrawable(
+                    this@VideoFragment,
+                    "https://image.tmdb.org/t/p/w500${movie.posterPath}"
+                )
             }
         }
 
@@ -223,6 +244,12 @@ class VideoFragment : PlaybackSupportFragment() {
                         playerGlue?.seekProvider = MySeekProvider(it.duration)
                     }
                 }
+            }
+
+            override fun onPlayCompleted(glue: PlaybackGlue?) {
+                super.onPlayCompleted(glue)
+
+                glue?.next()
             }
         })
     }
@@ -248,11 +275,16 @@ class MyAdapter(private val videoIds: List<String>) : PlayerAdapter(), YouTubePl
     private var playing: Boolean = false
     private var buffered: Float = 0F
     private var ready = false
+    private var listPositionCallback: ((position: Int, total: Int) -> Unit)? = null
 
     private var currentPosition = 0
 
     override fun play() {
         youtubePlayer?.play()
+    }
+
+    fun getCurrentListPosition(callback: (position: Int, total: Int) -> Unit) {
+        listPositionCallback = callback
     }
 
     override fun pause() {
@@ -293,6 +325,9 @@ class MyAdapter(private val videoIds: List<String>) : PlayerAdapter(), YouTubePl
 
         this.youtubePlayer = youTubePlayer
         youTubePlayer.loadVideo(videoIds.first(), 0F)
+
+        listPositionCallback?.invoke(currentPosition + 1, videoIds.size)
+
         ready = true
         callback.onPreparedStateChanged(this)
     }
@@ -302,6 +337,8 @@ class MyAdapter(private val videoIds: List<String>) : PlayerAdapter(), YouTubePl
 
         if (videoIds.size - 1 > currentPosition) {
             youtubePlayer?.loadVideo(videoIds[++currentPosition], 0F)
+
+            listPositionCallback?.invoke(currentPosition + 1, videoIds.size)
         }
     }
 
@@ -310,6 +347,8 @@ class MyAdapter(private val videoIds: List<String>) : PlayerAdapter(), YouTubePl
 
         if (currentPosition > 0) {
             youtubePlayer?.loadVideo(videoIds[--currentPosition], 0F)
+
+            listPositionCallback?.invoke(currentPosition + 1, videoIds.size)
         } else {
             seekTo(0)
         }
@@ -335,11 +374,7 @@ class MyAdapter(private val videoIds: List<String>) : PlayerAdapter(), YouTubePl
             PlayerConstants.PlayerState.ENDED -> {
                 playing = false
 
-                if (currentPosition < videoIds.size - 1) {
-                    next()
-                } else {
-                    callback.onPlayCompleted(this)
-                }
+                callback.onPlayCompleted(this)
             }
             else -> {}
         }

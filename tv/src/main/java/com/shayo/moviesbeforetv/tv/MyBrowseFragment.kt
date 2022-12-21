@@ -156,7 +156,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
                                     favorites.containsKey(it.movie.id),
                                     it.position,
                                     category,
-                                ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
+                                )
                             }
                         }.collectLatest {
                             categoriesAdapters[index].submitData(it)

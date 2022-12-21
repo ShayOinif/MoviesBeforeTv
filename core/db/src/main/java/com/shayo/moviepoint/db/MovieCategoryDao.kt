@@ -11,7 +11,11 @@ import androidx.room.Query
 interface MovieCategoryDao {
     // TODO: Find out why it causes problems in detail screen when scrolling beyond
     @Query("SELECT * FROM movie_category WHERE category = :category AND type = :type AND position >= :position ORDER BY position ASC")
-    fun getCategoryPaging(type: String, category: String, position: Int): PagingSource<Int, MovieCategory>
+    fun getCategoryPaging(
+        type: String,
+        category: String,
+        position: Int
+    ): PagingSource<Int, MovieCategory>
 
     @Query("SELECT COUNT(*) FROM movie_category WHERE category = :category AND type = :type")
     suspend fun isCategoryEmpty(type: String, category: String): Int

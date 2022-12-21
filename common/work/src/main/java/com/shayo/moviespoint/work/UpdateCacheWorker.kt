@@ -13,7 +13,7 @@ class UpdateCacheWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val moviesRepository: MoviesRepository,
-): CoroutineWorker(appContext, workerParams) {
+) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         return moviesRepository.updateMovies().fold(
             onSuccess = {

@@ -28,7 +28,7 @@ class MainActivity : FragmentActivity() {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 backgroundViewModel.backgroundFlow.collectLatest { path ->
                     backgroundManager.drawable = path?.let {
-                         loadDrawable(
+                        loadDrawable(
                             this@MainActivity,
                             "https://image.tmdb.org/t/p/original${path}",
                         )

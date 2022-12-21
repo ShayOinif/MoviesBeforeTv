@@ -9,7 +9,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.shareIn
 
 interface MovieManager {
-    fun getSearchFlow(query: String, scope: CoroutineScope, position: Int = 0): Flow<PagingData<PagedItem>>
+    fun getSearchFlow(
+        query: String,
+        scope: CoroutineScope,
+        position: Int = 0
+    ): Flow<PagingData<PagedItem>>
 
     val favoritesMap: Flow<Map<Int, String>>
 
@@ -18,9 +22,14 @@ interface MovieManager {
 
     fun setCollection(collectionName: String?)
 
-    suspend fun toggleFavorite(movie: Movie)
+    suspend fun toggleFavorite(id: Int, type: String)
 
-    fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int = 0): Flow<PagingData<PagedItem.PagedMovie>>
+    fun getCategoryFlow(
+        type: String,
+        category: String,
+        scope: CoroutineScope,
+        position: Int = 0
+    ): Flow<PagingData<PagedItem.PagedMovie>>
 
     fun getDetailedMovieByIdFlow(id: Int, type: String): Flow<Movie?>
 }
@@ -33,7 +42,11 @@ internal class MovieManagerImpl(
 
     private val coroutineScope = CoroutineScope((SupervisorJob()))
 
-    override fun getSearchFlow(query: String, scope: CoroutineScope, position: Int): Flow<PagingData<PagedItem>> {
+    override fun getSearchFlow(
+        query: String,
+        scope: CoroutineScope,
+        position: Int
+    ): Flow<PagingData<PagedItem>> {
         return combine(
             Pager(
                 config = PagingConfig(
@@ -61,25 +74,30 @@ internal class MovieManagerImpl(
     override val favoritesMap = favoritesRepository.favoritesMap
 
     override val favoritesFlow = combine(
-            favoritesRepository.favoritesMap,
-            genreRepository.movieGenresFlow
-        ) { favoritesMap, genres ->
-            favoritesMap.map { (id, type) ->
-                moviesRepository.getMovieById(id, type).map { movie ->
-                    movie.mapGenres(genres)
-                }
+        favoritesRepository.favoritesMap,
+        genreRepository.movieGenresFlow
+    ) { favoritesMap, genres ->
+        favoritesMap.map { (id, type) ->
+            moviesRepository.getMovieById(id, type).map { movie ->
+                movie.mapGenres(genres)
             }
-        }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(1_500), replay = 1)
+        }
+    }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(1_500), replay = 1)
 
     override fun setCollection(collectionName: String?) {
         favoritesRepository.setCollection(collectionName)
     }
 
-    override suspend fun toggleFavorite(movie: Movie) {
-        favoritesRepository.toggleFavorite(movie.id, movie.type)
+    override suspend fun toggleFavorite(id: Int, type: String) {
+        favoritesRepository.toggleFavorite(id, type)
     }
 
-    override fun getCategoryFlow(type: String, category: String, scope: CoroutineScope, position: Int): Flow<PagingData<PagedItem.PagedMovie>> {
+    override fun getCategoryFlow(
+        type: String,
+        category: String,
+        scope: CoroutineScope,
+        position: Int
+    ): Flow<PagingData<PagedItem.PagedMovie>> {
         return combine(
             moviesRepository.getCategoryFlow(type, category, position).cachedIn(scope),
             genreRepository.movieGenresFlow
