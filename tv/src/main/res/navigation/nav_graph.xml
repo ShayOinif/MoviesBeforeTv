@@ -18,6 +18,10 @@
         <action
             android:id="@+id/action_myBrowseFragment_to_loginFragment"
             app:destination="@id/loginFragment" />
+        <deepLink
+            android:id="@+id/deepLink"
+            android:autoVerify="true"
+            app:uri="mopoint://point" />
     </fragment>
     <fragment
         android:id="@+id/detailFragment"
@@ -34,7 +38,12 @@
             app:argType="string" />
         <argument
             android:name="queryOrCategory"
+            android:defaultValue='""'
             app:argType="string" />
+        <argument
+            android:name="origin"
+            android:defaultValue="NONE"
+            app:argType="com.shayo.moviesbeforetv.tv.DetailsOrigin" />
         <argument
             android:name="position"
             android:defaultValue="0"
@@ -43,13 +52,14 @@
             android:id="@+id/action_detailFragment_self"
             app:destination="@id/detailFragment"
             app:launchSingleTop="true" />
-        <argument
-            android:name="origin"
-            app:argType="com.shayo.moviesbeforetv.tv.DetailsOrigin" />
         <action
             android:id="@+id/action_detailFragment_to_personFragment"
             app:destination="@id/personFragment"
             app:launchSingleTop="true" />
+        <deepLink
+            android:id="@+id/deepLink2"
+            android:autoVerify="true"
+            app:uri="mopoint://point?movieId={movieId}&amp;movieType={movieType}" />
     </fragment>
     <fragment
         android:id="@+id/trailerPlayer"

@@ -21,7 +21,7 @@ import com.shayo.moviespoit.programs.ProgramsRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
-// TODO: Link to app on click in channels and programs
+// TODO: Extract duplicate code for movie and tv to functions or something
 
 @HiltWorker
 class ChannelsWorker @AssistedInject constructor(
@@ -52,7 +52,7 @@ class ChannelsWorker @AssistedInject constructor(
 
                             builder.setType(TvContractCompat.Channels.TYPE_PREVIEW)
                                 .setDisplayName("Discover Movies")
-                            //.setAppLinkIntentUri(uri)
+                                .setAppLinkIntentUri(Uri.parse("mopoint://point"))
 
                             val channelUri = applicationContext.contentResolver.insert(
                                 TvContractCompat.Channels.CONTENT_URI,
@@ -85,7 +85,7 @@ class ChannelsWorker @AssistedInject constructor(
 
                             builder.setType(TvContractCompat.Channels.TYPE_PREVIEW)
                                 .setDisplayName("Discover Tv Shows")
-                                //.setAppLinkIntent()
+                                .setAppLinkIntentUri(Uri.parse("mopoint://point"))
 
                             val channelUri = applicationContext.contentResolver.insert(
                                 TvContractCompat.Channels.CONTENT_URI,
@@ -128,7 +128,7 @@ class ChannelsWorker @AssistedInject constructor(
                                 .setTitle(it.title)
                                 .setDescription(it.overview)
                                 .setPosterArtUri(Uri.parse("https://image.tmdb.org/t/p/w780${it.backdropPath}"))
-                                //.setIntentUri(uri)
+                                .setIntentUri(Uri.parse("mopoint://point?movieId=${it.id}&movieType=movie"))
 
                             val programUri = applicationContext.contentResolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI,
                                 builder.build().toContentValues())
@@ -146,8 +146,8 @@ class ChannelsWorker @AssistedInject constructor(
                                 .setType(TvContractCompat.PreviewPrograms.TYPE_MOVIE)
                                 .setTitle(it.title)
                                 .setDescription(it.overview)
-                                .setPosterArtUri(Uri.parse("https://image.tmdb.org/t/p/w500${it.posterPath}"))
-                            //.setIntentUri(uri)
+                                .setPosterArtUri(Uri.parse("https://image.tmdb.org/t/p/w780${it.backdropPath}"))
+                                .setIntentUri(Uri.parse("mopoint://point?movieId=${it.id}&movieType=tv"))
 
                             val programUri = applicationContext.contentResolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI,
                                 builder.build().toContentValues())
