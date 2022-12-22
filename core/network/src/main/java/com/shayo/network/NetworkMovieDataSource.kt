@@ -17,6 +17,10 @@ interface NetworkMovieDataSource {
         type: String,
         id: Int,
     ): Result<NetworkMovie<NetworkGenre>>
+
+    suspend fun discover(
+        type: String,
+    ): Result<MovieNetworkResponse<Int>>
 }
 
 internal class NetworkMovieDataSourceImpl constructor(
@@ -66,6 +70,23 @@ internal class NetworkMovieDataSourceImpl constructor(
     override suspend fun getById(type: String, id: Int): Result<NetworkMovie<NetworkGenre>> {
         return try {
             Result.success(movieNetworkService.getById(type, id))
+        } catch (ioException: IOException) {
+            Result.failure(Exception("No Connection"))
+        } catch (httpException: HttpException) {
+            Result.failure(
+                Exception(
+                    json.decodeFromString(
+                        ServerError.serializer(),
+                        httpException.response()!!.errorBody()!!.string()
+                    ).message
+                )
+            )
+        }
+    }
+
+    override suspend fun discover(type: String): Result<MovieNetworkResponse<Int>> {
+        return try {
+            Result.success(movieNetworkService.discover(type))
         } catch (ioException: IOException) {
             Result.failure(Exception("No Connection"))
         } catch (httpException: HttpException) {

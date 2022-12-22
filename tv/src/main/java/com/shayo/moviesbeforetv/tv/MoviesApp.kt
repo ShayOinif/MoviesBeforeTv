@@ -3,6 +3,7 @@ package com.shayo.moviesbeforetv.tv
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.*
+import com.shayo.moviespoint.work.ChannelsWorker
 import com.shayo.moviespoint.work.ClearOldCacheWorker
 import com.shayo.moviespoint.work.UpdateCacheWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -27,7 +28,9 @@ class MoviesApp : Application(), Configuration.Provider {
             PeriodicWorkRequestBuilder<ClearOldCacheWorker>(1, TimeUnit.DAYS)
                 .build()
 
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        val manager = WorkManager.getInstance(this)
+
+        manager.enqueueUniquePeriodicWork(
             "clear_cache",
             ExistingPeriodicWorkPolicy.KEEP,
             deleteRequest
@@ -35,23 +38,30 @@ class MoviesApp : Application(), Configuration.Provider {
 
         val updateRequest = PeriodicWorkRequestBuilder<UpdateCacheWorker>(1, TimeUnit.DAYS)
             .setConstraints(
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .setRequiresDeviceIdle(true)
-                        .build()
-                } else {
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build()
-                }
             )
             .build()
 
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        manager.enqueueUniquePeriodicWork(
             "update_cache",
             ExistingPeriodicWorkPolicy.KEEP,
             updateRequest
+        )
+
+        val channelsRequest = PeriodicWorkRequestBuilder<ChannelsWorker>(1, TimeUnit.DAYS)
+        .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+        )
+            .build()
+
+        manager.enqueueUniquePeriodicWork(
+            "updateChannels",
+            ExistingPeriodicWorkPolicy.KEEP,
+            channelsRequest
         )
     }
 }

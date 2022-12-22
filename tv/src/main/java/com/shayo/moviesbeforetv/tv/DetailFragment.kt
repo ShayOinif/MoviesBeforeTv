@@ -15,6 +15,7 @@ import androidx.paging.map
 import com.shayo.movies.*
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
+import com.shayo.moviespoint.person.PersonRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -33,6 +34,9 @@ class DetailFragment : DetailsSupportFragment() {
     @Inject
     lateinit var creditsRepository: CreditsRepository
 
+    @Inject
+    lateinit var personRepository: PersonRepository
+
     private lateinit var backgroundViewModel: BackgroundViewModel
 
     private lateinit var mAdapter: ArrayObjectAdapter
@@ -41,7 +45,7 @@ class DetailFragment : DetailsSupportFragment() {
     private lateinit var detailsPresenter: FullWidthDetailsOverviewRowPresenter
     private val detailsRow = DetailsOverviewRow(Object())
     private lateinit var moreRowAdapter: androidx.leanback.paging.PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess>
-    private lateinit var castRowAdapter: ArrayObjectAdapter
+    private lateinit var castOrMoviesRowAdapter: ArrayObjectAdapter
 
     // TODO: Create paging from favorites and then we won't have to handle it differently
     private lateinit var favoritesAdapter: ArrayObjectAdapter
@@ -71,29 +75,29 @@ class DetailFragment : DetailsSupportFragment() {
 
         val queryOrCategory = navArgs.queryOrCategory
 
-        val header = HeaderItem("Browse More:")
-
         CardPresenter(resources.displayMetrics.widthPixels).let { cardPresenter ->
             mAdapter.add(
                 ListRow(
                     HeaderItem("Full cast:"),
-                    ArrayObjectAdapter(cardPresenter).also { castRowAdapter = it }
+                    ArrayObjectAdapter(cardPresenter).also { castOrMoviesRowAdapter = it }
                 )
             )
 
-            mAdapter.add(
-                ListRow(
-                    header,
-                    if (navArgs.origin == DetailsOrigin.WATCHLIST) {
-                        ArrayObjectAdapter(cardPresenter).also { favoritesAdapter = it }
-                    } else {
-                        androidx.leanback.paging.PagingDataAdapter(
-                            cardPresenter,
-                            BrowseMovieLoadSuccessDiff()
-                        ).also { moreRowAdapter = it }
-                    }
+            if (navArgs.origin != DetailsOrigin.NONE) {
+                mAdapter.add(
+                    ListRow(
+                        HeaderItem("Browse More:"),
+                        if (navArgs.origin == DetailsOrigin.WATCHLIST) {
+                            ArrayObjectAdapter(cardPresenter).also { favoritesAdapter = it }
+                        } else {
+                            androidx.leanback.paging.PagingDataAdapter(
+                                cardPresenter,
+                                BrowseMovieLoadSuccessDiff()
+                            ).also { moreRowAdapter = it }
+                        }
+                    )
                 )
-            )
+            }
         }
 
         mPresenterSelector.addClassPresenter(
@@ -111,6 +115,10 @@ class DetailFragment : DetailsSupportFragment() {
                                 navArgs.origin,
                                 item.position
                             )
+                        findNavController().navigate(action)
+                    } else if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit) {
+                        val action =
+                            DetailFragmentDirections.actionDetailFragmentToPersonFragment(personId = item.credit.id)
                         findNavController().navigate(action)
                     }
                 }
@@ -163,25 +171,25 @@ class DetailFragment : DetailsSupportFragment() {
                 }
             }
 
+            // TODO: Make cache for credits so in won't fetch from network again and again
+            val topCastAndDirector = creditsRepository.getCredits(movieType, movieId).fold(
+                onSuccess = {
+                    it
+                },
+                onFailure = {
+                    null
+                }
+            )
+
+            castOrMoviesRowAdapter.addAll(0, topCastAndDirector?.cast?.mapIndexed { index, credit ->
+                BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit(
+                    credit, index
+                )
+            })
+
             repeatOnLifecycle(Lifecycle.State.STARTED) {
 
                 val position = navArgs<DetailFragmentArgs>().value.position
-
-                // TODO: Make cache for credits so in won't fetch from network again and again
-                val topCastAndDirector = creditsRepository.getCredits(movieType, movieId).fold(
-                    onSuccess = {
-                        it
-                    },
-                    onFailure = {
-                        null
-                    }
-                )
-
-                castRowAdapter.addAll(0, topCastAndDirector?.cast?.mapIndexed { index, credit ->
-                    BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit(
-                        credit, index
-                    )
-                })
 
                 launch {
                     moviesManager.getDetailedMovieByIdFlow(movieId, movieType)
@@ -287,6 +295,7 @@ class DetailFragment : DetailsSupportFragment() {
                                 }
                             }
                         }
+                        else -> {}
                     }
                 }
             }
@@ -294,7 +303,7 @@ class DetailFragment : DetailsSupportFragment() {
     }
 }
 
-enum class DetailsOrigin { CATEGORY, WATCHLIST, SEARCH }
+enum class DetailsOrigin { CATEGORY, WATCHLIST, SEARCH, NONE }
 
 data class DetailedMovie(
     val title: String,

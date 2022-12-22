@@ -39,6 +39,14 @@ internal interface MovieNetworkService {
         @Query("api_key")
         apiKey: String = API_KEY,
     ): NetworkMovie<NetworkGenre>
+
+    @GET("discover/{type}")
+    suspend fun discover(
+        @Path("type")
+        type: String,
+        @Query("api_key")
+        apiKey: String = API_KEY,
+    ): MovieNetworkResponse<Int>
 }
 
 /* TODO: We use this class also for search, which gives us persons as well, so find a way to make it

@@ -31,6 +31,10 @@ interface MoviesRepository {
     suspend fun getCategorizedMoviesIds(): List<Int>
 
     suspend fun updateMovies(): Result<Void?>
+
+    suspend fun discover(
+        type: String,
+    ): Result<List<Movie>>
 }
 
 internal class MoviesRepositoryImpl constructor(
@@ -196,6 +200,14 @@ internal class MoviesRepositoryImpl constructor(
         }
 
         return Result.success(null)
+    }
+
+    override suspend fun discover(type: String): Result<List<Movie>> {
+        return networkMovieDataSource.discover(type).map { response ->
+            response.results.map {
+                it.mapToMovieWithoutGenres(type)
+            }
+        }
     }
 
     private suspend fun getByIdNetwork(type: String, id: Int, oldTimeStamp: Long? = null) =

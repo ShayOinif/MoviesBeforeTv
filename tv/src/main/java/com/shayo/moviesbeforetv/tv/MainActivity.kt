@@ -12,6 +12,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+
+// TODO: Make the app searchable from without
+
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

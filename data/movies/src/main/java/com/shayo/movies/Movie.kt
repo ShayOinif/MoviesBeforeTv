@@ -3,7 +3,7 @@ package com.shayo.movies
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
-
+// TODO: Maybe don't need parcelize
 @Parcelize
 data class Movie(
     val id: Int,
@@ -16,6 +16,7 @@ data class Movie(
     val genres: List<Genre>,
     val type: String,
     val runtime: Int?,
+    val popularity: Double? = null,
     val isFavorite: Boolean = false
 ) : Parcelable
 

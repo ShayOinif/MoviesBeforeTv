@@ -6,7 +6,7 @@ import kotlinx.serialization.json.JsonNames
 
 // TODO: In genres the serialization is incorrect
 @kotlinx.serialization.Serializable
-internal data class ServerError @OptIn(ExperimentalSerializationApi::class) constructor(
+data class ServerError @OptIn(ExperimentalSerializationApi::class) constructor(
     @JsonNames("status_message")
     @SerializedName("status_message")
     val message: String,

@@ -46,4 +46,7 @@ dependencies {
     kapt(libs.hilt.compiler)
 
     implementation project(':data:movies')
+    implementation project(':data:programs')
+
+    implementation 'androidx.tvprovider:tvprovider:1.0.0'
 }

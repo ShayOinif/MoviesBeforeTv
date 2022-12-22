@@ -2,7 +2,7 @@ package com.shayo.movies
 
 import com.shayo.network.NetworkMovie
 
-internal fun NetworkMovie<Int>.mapToMovieWithoutGenres() =
+fun NetworkMovie<Int>.mapToMovieWithoutGenres(type: String? = null) =
     Movie(
         id,
         title,
@@ -14,6 +14,7 @@ internal fun NetworkMovie<Int>.mapToMovieWithoutGenres() =
         genreIds.map {
             Genre(it, "")
         },
-        movieType!!,
-        runtime
+        type ?: movieType ?: throw(Exception("Error in data:movies Mappers.kt/mapToMovieWithoutGenres, couldn't get type")),
+        runtime,
+        popularity
     )

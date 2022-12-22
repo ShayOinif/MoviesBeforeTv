@@ -422,7 +422,23 @@ class CardPresenter(width: Int) : Presenter() {
                     cardView.titleText = item.movie.title
 
                     cardView.contentText =
-                        "${item.movie.voteAverage}/10${if (item.movie.genres.isNotEmpty()) " - ${item.movie.genres[0].name}" else ""}"
+                        "${
+                            String.format(
+                                "%.1f",
+                                item.movie.voteAverage
+                            )
+                        }/10${if (item.movie.genres.isNotEmpty()) " - ${item.movie.genres[0].name}" else ""}${
+                            item.movie.releaseDate?.run {
+                                try {
+                                    " - " + substring(
+                                        0,
+                                        4
+                                    )
+                                } catch (e: Exception) {
+                                    ""
+                                }
+                            } ?: ""
+                        }"
 
                     if (item.isFavorite)
                         cardView.badgeImage = ContextCompat.getDrawable(
@@ -442,7 +458,9 @@ class CardPresenter(width: Int) : Presenter() {
                 is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit -> {
                     cardView.titleText = item.credit.name
                     cardView.contentText =
-                        "${item.credit.knownFor.take(2).joinToString(", ") { it.title }}${item.credit.description}"
+                        "${
+                            item.credit.knownFor.take(2).joinToString(", ") { it.title }
+                        }${item.credit.description}"
 
                     item.credit.profilePath?.let {
                         Glide.with(viewHolder.view.context)

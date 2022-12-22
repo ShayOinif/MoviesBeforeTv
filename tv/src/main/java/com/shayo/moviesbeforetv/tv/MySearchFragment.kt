@@ -84,6 +84,10 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                         item.position
                     )
                 )
+            } else if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit) {
+                val action =
+                    MySearchFragmentDirections.actionMySearchFragmentToPersonFragment(personId = item.credit.id)
+                findNavController().navigate(action)
             }
         }
 
@@ -95,6 +99,17 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                     delay(1_000)
                     if (isActive) {
                         backgroundViewModel.backgroundFlow.value = item.movie.backdropPath
+                    }
+                }
+            }
+
+            if (item is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit) {
+                backgroundUpdateJob?.cancel()
+
+                backgroundUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(1_000)
+                    if (isActive) {
+                        backgroundViewModel.backgroundFlow.value = item.credit.knownFor.firstOrNull()?.backdropPath
                     }
                 }
             }

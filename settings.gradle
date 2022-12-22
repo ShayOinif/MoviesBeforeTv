@@ -17,6 +17,9 @@ dependencyResolutionManagement {
             library('hilt-android', 'com.google.dagger:hilt-android:2.44')
             library('hilt-compiler', 'com.google.dagger:hilt-compiler:2.44')
             library('paging-runtime', 'androidx.paging:paging-runtime-ktx:3.1.1')
+            library('json', 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1')
+            library('junit', 'junit:junit:4.13.2')
+            library('coroutines-test', 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4')
         }
     }
 }
@@ -28,3 +31,5 @@ include ':core:db'
 include ':core:firestore'
 include ':core:auth'
 include ':common:work'
+include ':data:person'
+include ':data:programs'

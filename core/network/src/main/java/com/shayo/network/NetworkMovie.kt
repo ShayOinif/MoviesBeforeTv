@@ -24,4 +24,5 @@ data class NetworkMovie<T>(
     val runtime: Int? = null,
     @SerializedName("known_for")
     val knownFor: List<NetworkMovie<Int>>,
+    val popularity: Double?
 )

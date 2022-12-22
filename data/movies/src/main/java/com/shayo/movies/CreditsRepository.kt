@@ -21,7 +21,7 @@ class CreditsRepositoryImpl(
                     cast = response.cast.map { networkCredit ->
                         with(networkCredit) {
                             Credit(
-                                id,
+                                this.id,
                                 name,
                                 profilePath,
                                 description

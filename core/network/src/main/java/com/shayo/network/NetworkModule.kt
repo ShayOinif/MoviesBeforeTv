@@ -43,4 +43,8 @@ object NetworkModule {
         NetworkCreditsDataSourceImpl(
             retrofit.create(CreditsNetworkService::class.java)
         )
+
+    @Provides
+    fun providePersonNetworkService(retrofit: Retrofit): PersonNetworkService =
+        retrofit.create(PersonNetworkService::class.java)
 }
