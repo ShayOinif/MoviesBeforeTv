@@ -14,12 +14,35 @@ dependencyResolutionManagement {
 
     versionCatalogs {
         libs {
-            library('hilt-android', 'com.google.dagger:hilt-android:2.44')
-            library('hilt-compiler', 'com.google.dagger:hilt-compiler:2.44')
+            version('hilt', '2.44')
+
+            library('hilt-android', 'com.google.dagger','hilt-android').versionRef('hilt')
+            library('hilt-compiler', 'com.google.dagger','hilt-compiler').versionRef('hilt')
+            library('hilt-test', 'com.google.dagger','hilt-android-compiler').versionRef('hilt')
+
+            plugin('hilt-plug', 'com.google.dagger.hilt.android').versionRef('hilt')
+
             library('paging-runtime', 'androidx.paging:paging-runtime-ktx:3.1.1')
             library('json', 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1')
             library('junit', 'junit:junit:4.13.2')
             library('coroutines-test', 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4')
+
+            library('androidx-compose-bom', 'androidx.compose:compose-bom:2022.12.00')
+            library('compose-hilt-navigation', 'androidx.hilt:hilt-navigation-compose:1.0.0')
+            library('compose-navigation', 'androidx.navigation:navigation-compose:2.5.3')
+
+            library('android-core', 'androidx.core:core-ktx:1.9.0')
+            library('lifecycle-runtime', 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1')
+            library('activity-compose', 'androidx.activity:activity-compose:1.6.1')
+
+            library('test', 'androidx.test.ext:junit:1.1.4')
+            library('espresso-core', 'androidx.test.espresso:espresso-core:3.5.0')
+
+            library('firebase-bom', 'com.google.firebase:firebase-bom:31.1.0')
+
+            library('work-runtime', 'androidx.work:work-runtime-ktx:2.7.1')
+            library('hilt-work', 'androidx.hilt:hilt-work:1.0.0')
+            library('android-hilt-compiler', 'androidx.hilt:hilt-compiler:1.0.0')
         }
     }
 }
@@ -33,3 +56,7 @@ include ':core:auth'
 include ':common:work'
 include ':data:person'
 include ':data:programs'
+include ':app'
+include ':feature:home'
+include ':common:ui'
+include ':feature:account'

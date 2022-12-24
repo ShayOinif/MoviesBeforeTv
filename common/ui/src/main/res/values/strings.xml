@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remove_from_watchlist">Remove from watchlist</string>
+    <string name="add_to_watchlist">Add to watchlist</string>
+</resources>

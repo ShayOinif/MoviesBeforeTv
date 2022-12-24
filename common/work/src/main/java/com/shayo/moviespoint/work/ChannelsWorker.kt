@@ -2,9 +2,7 @@ package com.shayo.moviespoint.work
 
 import android.content.ContentUris
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.fragment.app.FragmentActivity
@@ -44,8 +42,7 @@ class ChannelsWorker @AssistedInject constructor(
                         var tvId = applicationContext.getSharedPreferences(
                             "Default",
                             FragmentActivity.MODE_PRIVATE
-                        ).getLong("movieId", -1L)
-
+                        ).getLong("tvId", -1L)
 
                         if (movieId == -1L) {
                             val builder = Channel.Builder()
@@ -99,7 +96,7 @@ class ChannelsWorker @AssistedInject constructor(
                                     "Default",
                                     FragmentActivity.MODE_PRIVATE
                                 ).edit()
-                                    .putLong("movieId", tvId)
+                                    .putLong("tvId", tvId)
                                     .apply()
 
                                 ChannelLogoUtils.storeChannelLogo(
@@ -130,8 +127,10 @@ class ChannelsWorker @AssistedInject constructor(
                                 .setPosterArtUri(Uri.parse("https://image.tmdb.org/t/p/w780${it.backdropPath}"))
                                 .setIntentUri(Uri.parse("mopoint://point?movieId=${it.id}&movieType=movie"))
 
-                            val programUri = applicationContext.contentResolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI,
-                                builder.build().toContentValues())
+                            val programUri = applicationContext.contentResolver.insert(
+                                TvContractCompat.PreviewPrograms.CONTENT_URI,
+                                builder.build().toContentValues()
+                            )
 
                             programUri?.let {
                                 val programId = ContentUris.parseId(programUri)
@@ -149,8 +148,10 @@ class ChannelsWorker @AssistedInject constructor(
                                 .setPosterArtUri(Uri.parse("https://image.tmdb.org/t/p/w780${it.backdropPath}"))
                                 .setIntentUri(Uri.parse("mopoint://point?movieId=${it.id}&movieType=tv"))
 
-                            val programUri = applicationContext.contentResolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI,
-                                builder.build().toContentValues())
+                            val programUri = applicationContext.contentResolver.insert(
+                                TvContractCompat.PreviewPrograms.CONTENT_URI,
+                                builder.build().toContentValues()
+                            )
 
                             programUri?.let {
                                 val programId = ContentUris.parseId(programUri)

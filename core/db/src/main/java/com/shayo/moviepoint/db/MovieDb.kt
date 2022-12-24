@@ -7,7 +7,8 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [DbMovie::class, MovieCategory::class, DbGenre::class, DbFavorite::class, DbProgram::class],
-    version = 1
+    version = 1,
+    exportSchema = false,
 )
 internal abstract class MovieDb : RoomDatabase() {
 
