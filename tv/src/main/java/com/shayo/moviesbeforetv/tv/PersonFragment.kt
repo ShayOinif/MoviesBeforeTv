@@ -132,10 +132,10 @@ class PersonFragment : DetailsSupportFragment() {
                                         movie = movie.copy(
                                             genres = movie.genres.map { genre ->
                                                 genreMap[genre.id] ?: genre
-                                            }
+                                            },
+                                            isFavorite = favoritesMap.containsKey(movie.id)
                                         ),
                                         position = index,
-                                        isFavorite = favoritesMap.containsKey(movie.id),
                                     )
                                 })
 

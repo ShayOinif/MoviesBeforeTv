@@ -71,7 +71,7 @@ class TrailerPlayer : Fragment() {
 
         if (initialSetup) {
             viewLifecycleOwner.lifecycleScope.launch {
-                launch {
+                //launch {
                     movieRepository.getMovieById(navArgs.movieId, navArgs.movieType).fold(
                         onSuccess = { movie ->
                             videoRepository.getTrailers(movie.type, movie.id).fold(
@@ -112,7 +112,7 @@ class TrailerPlayer : Fragment() {
                         },
                         onFailure = ::navToError,
                     )
-                }
+               // }
             }
         }
     }

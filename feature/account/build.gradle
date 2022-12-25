@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
     alias(libs.plugins.hilt.plug)
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -52,12 +53,17 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
 
+    implementation libs.firebase.ui.auth
+
     implementation(libs.compose.navigation)
     implementation(libs.compose.hilt.navigation)
+
+    implementation libs.coil.compose
 
     implementation(libs.android.core)
     implementation(libs.lifecycle.runtime)
     implementation(libs.activity.compose)
+    implementation libs.lifecycle.runtime.compose
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.test)

@@ -23,12 +23,12 @@ import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
+import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -142,24 +142,16 @@ class MyBrowseFragment : BrowseSupportFragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 categories.forEachIndexed { index, (_, type, category) ->
                     launch {
-                        combine(
-                            movieManager.getCategoryFlow(
-                                type = type,
-                                category = category,
-                                scope = viewLifecycleOwner.lifecycleScope,
-                            ),
-                            movieManager.favoritesMap
-                        ) { page, favorites ->
-                            page.map {
-                                BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
-                                    it.movie,
-                                    favorites.containsKey(it.movie.id),
-                                    it.position,
-                                    category,
-                                ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
-                            }
-                        }.collectLatest {
-                            categoriesAdapters[index].submitData(it)
+                        movieManager.getCategoryFlow(
+                            type = type,
+                            category = category,
+                            scope = viewLifecycleOwner.lifecycleScope,
+                        ).collectLatest { pagedData ->
+                            categoriesAdapters[index].submitData(
+                                pagedData.map { pagedMovie ->
+                                    pagedMovie.mapToBrowseResult(category)
+                                }
+                            )
                         }
                     }
 
@@ -205,13 +197,59 @@ class MyBrowseFragment : BrowseSupportFragment() {
                 }
 
                 launch {
-                    movieManager.favoritesFlow.collectLatest {
+                    // TODO: Move to class
+                    val diff =
+                        object : DiffCallback<BrowseMovieLoadResult.BrowseMovieLoadSuccess>() {
+                            override fun areItemsTheSame(
+                                oldItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess,
+                                newItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess
+                            ): Boolean {
+                                return if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie &&
+                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie
+                                ) {
+                                    oldItem.movie.id == newItem.movie.id
+                                } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
+                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
+                                ) {
+                                    oldItem.credit.id == newItem.credit.id
+                                } else {
+                                    false
+                                }
+                            }
+
+                            override fun areContentsTheSame(
+                                oldItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess,
+                                newItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess
+                            ): Boolean {
+                                return if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie &&
+                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie
+                                ) {
+                                    oldItem.movie.title == newItem.movie.title &&
+                                            oldItem.movie.posterPath == newItem.movie.posterPath &&
+                                            oldItem.movie.backdropPath == newItem.movie.backdropPath &&
+                                            oldItem.movie.overview == newItem.movie.overview &&
+                                            oldItem.movie.releaseDate == newItem.movie.releaseDate &&
+                                            oldItem.movie.voteAverage == newItem.movie.voteAverage &&
+                                            oldItem.movie.genres == newItem.movie.genres &&
+                                            oldItem.movie.type == newItem.movie.type &&
+                                            oldItem.movie.isFavorite == newItem.movie.isFavorite
+                                } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
+                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
+                                ) {
+                                    oldItem.credit.name == newItem.credit.name &&
+                                            oldItem.credit.profilePath == newItem.credit.profilePath
+                                } else {
+                                    false
+                                }
+                            }
+                        }
+
+                    movieManager.getFavoritesFlow().collectLatest {
                         val data = it.mapIndexed { index, result ->
                             result.fold(
                                 onSuccess = { movie ->
                                     BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
                                         movie,
-                                        true,
                                         index
                                     )
                                 },
@@ -221,21 +259,17 @@ class MyBrowseFragment : BrowseSupportFragment() {
                             )
                         }
 
-                        favoritesAdapter.clear()
-
-                        data.forEach { loadResult ->
-                            favoritesAdapter.add(loadResult)
-                        }
+                        favoritesAdapter.setItems(
+                            data,
+                            diff
+                        )
                     }
                 }
 
                 launch {
-                    // TODO: Maybe find another place to handle login logout in term of favorties
+                    // TODO: Maybe find another place to handle login logout in term of favorites
                     userRepository.currentAuthUserFlow.collectLatest { currentUser ->
                         currentUser?.run {
-
-                            movieManager.setCollection(email)
-
                             settingsAdapter.replace(
                                 0,
                                 SettingsCardType.Account(photoUrl?.toString())
@@ -247,8 +281,6 @@ class MyBrowseFragment : BrowseSupportFragment() {
                                 // TODO: Change title, though right now it causes problems
                             }
                         } ?: run {
-                            movieManager.setCollection(null)
-
                             settingsAdapter.replace(0, SettingsCardType.Account(null))
 
                             badgeDrawable = ContextCompat.getDrawable(
@@ -363,7 +395,7 @@ class BrowseMovieLoadSuccessDiff :
                     oldItem.movie.voteAverage == newItem.movie.voteAverage &&
                     oldItem.movie.genres == newItem.movie.genres &&
                     oldItem.movie.type == newItem.movie.type &&
-                    oldItem.isFavorite == newItem.isFavorite
+                    oldItem.movie.isFavorite == newItem.movie.isFavorite
         } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
             newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
         ) {
@@ -379,7 +411,6 @@ sealed interface BrowseMovieLoadResult {
     sealed interface BrowseMovieLoadSuccess : BrowseMovieLoadResult {
         data class BrowseMovie(
             val movie: Movie,
-            val isFavorite: Boolean = false,
             val position: Int,
             val category: String? = null,
         ) : BrowseMovieLoadSuccess
@@ -440,11 +471,13 @@ class CardPresenter(width: Int) : Presenter() {
                             } ?: ""
                         }"
 
-                    if (item.isFavorite)
+                    if (item.movie.isFavorite)
                         cardView.badgeImage = ContextCompat.getDrawable(
                             viewHolder.view.context,
                             R.drawable.ic_baseline_bookmark_24
                         )
+                    else
+                        cardView.badgeImage = null
 
                     item.movie.posterPath?.let {
                         Glide.with(viewHolder.view.context)

@@ -4,10 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -24,7 +21,6 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.items
 import com.shayo.moviespoint.ui.MediaCard
-import com.shayo.moviespoint.ui.MediaCardItem
 import kotlinx.coroutines.launch
 
 internal enum class MediaRowContentTypes {
@@ -36,74 +32,104 @@ internal enum class MediaRowContentTypes {
 
 // TODO: Change to Media category and put in components with the row of medias, get a variable to tell which media to load or something
 // TODO: Reusable with the view model, less code
-@OptIn(ExperimentalFoundationApi::class)
+// TODO: Handle not remembering state in the column, the row is fine
 @Composable
-fun HomeScreen(
+internal fun HomeScreen(
     //modifier: Modifier = Modifier,
+    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
     homeViewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val moviesPaging = homeViewModel.moviesFlow.collectAsLazyPagingItems()
+    val categories = homeViewModel.categoriesFlows
 
-    when (moviesPaging.loadState.refresh) {
-        is LoadState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+    CategoriesColumn(
+        homeCategories = categories,
+        watchlistCallback = homeViewModel::watchlistClick,
+        onMediaClick = onMediaClick
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun CategoriesColumn(
+    homeCategories: List<HomeCategory>,
+    watchlistCallback: (mediaId: Int, mediaType: String) -> Unit,
+    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
+) {
+    val listState = rememberSaveable(saver = LazyListState.Saver) {
+        LazyListState()
+    }
+
+    val pagingItems = homeCategories.map { homeCategory ->
+        homeCategory.flow.collectAsLazyPagingItems()
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 8.dp),
+        state = listState
+    ) {
+        homeCategories.forEachIndexed { index, category ->
+            stickyHeader(
+                key = -category.nameRes,
+                contentType = MediaRowContentTypes.HEADER,
             ) {
-                CircularProgressIndicator()
-            }
-        }
-        is LoadState.Error -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "Error loading, retry?"
-                )
-                Spacer(
-                    modifier = Modifier.width(8.dp)
-                )
-                IconButton(
-                    onClick = moviesPaging::refresh,
+                Card(
+                    modifier = Modifier.padding(all = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Retry loading"
+                    Text(
+                        text = stringResource(id = category.nameRes),
+                        modifier = Modifier.padding(all = 16.dp),
+                        style = MaterialTheme.typography.headlineLarge,
                     )
                 }
             }
-        }
-        else -> {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 8.dp)
+
+            item(
+                key = category.nameRes, //category.id,
+                contentType = MediaRowContentTypes.CATEGORY_ROW,
             ) {
-                stickyHeader(
-                    key = -1,
-                    contentType = MediaRowContentTypes.HEADER,
-                ) {
-                    Card(
-                        modifier = Modifier.padding(all = 8.dp)
-                    ) {
-                        Text(
-                            text = "Popular Movies",
-                            modifier = Modifier.padding(all = 16.dp),
-                            style = MaterialTheme.typography.headlineLarge,
+
+                val moviesPaging = pagingItems[index]
+
+                when (moviesPaging.loadState.refresh) {
+                    is LoadState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is LoadState.Error -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = "Error loading, retry?"
+                            )
+                            Spacer(
+                                modifier = Modifier.width(8.dp)
+                            )
+                            IconButton(
+                                onClick = moviesPaging::refresh,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Retry loading"
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        MediaRow(
+                            medias = moviesPaging,//categoriesPagingItems[category.id] ?: throw Exception("Missing category!"),
+                            watchlistCallback = watchlistCallback,
+                            onMediaClick = onMediaClick
                         )
                     }
-                }
-
-                item(
-                    key = "popular", //category.id,
-                    contentType = MediaRowContentTypes.CATEGORY_ROW,
-                ) {
-                    MediaRow(
-                        medias = moviesPaging,//categoriesPagingItems[category.id] ?: throw Exception("Missing category!"),
-                        watchlistCallback = homeViewModel::watchlistClick,
-                    )
                 }
             }
         }
@@ -112,8 +138,9 @@ fun HomeScreen(
 
 @Composable
 internal fun MediaRow(
-    medias: LazyPagingItems<MediaCardItem>,
-    watchlistCallback: (Int) -> Unit,
+    medias: LazyPagingItems<HomeItem>,
+    watchlistCallback: (id: Int, type: String) -> Unit,
+    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
 
@@ -150,8 +177,9 @@ internal fun MediaRow(
             ) { item ->
                 item?.let {
                     MediaCard(
-                        item = item,
-                        watchlistCallback = { watchlistCallback(item.id) }
+                        item = item.mediaCardItem,
+                        watchlistCallback = { watchlistCallback(item.id, item.type) },
+                        onClickCallback = { onMediaClick(item.id, item.type) }
                     )
                 }
             }

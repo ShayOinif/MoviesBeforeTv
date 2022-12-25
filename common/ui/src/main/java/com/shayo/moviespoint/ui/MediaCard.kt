@@ -5,9 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.*
@@ -16,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
@@ -27,10 +24,14 @@ fun MediaCard(
     item: MediaCardItem,
     watchlistCallback: () -> Unit,
     modifier: Modifier = Modifier,
+    onClickCallback: () -> Unit = {},
 ) {
     Card(
         modifier = modifier
             .width(154.dp) // TODO:
+            .clickable {
+                onClickCallback()
+            }
     ) {
 
         item.posterPath?.let {
@@ -56,7 +57,7 @@ fun MediaCard(
                 },
                 contentDescription = null,
                 modifier = Modifier
-                    .width(154.dp) // TODO: Maybe move to a const
+                    .fillMaxWidth() // TODO: Maybe move to a const
                     .aspectRatio(2 / 3F) // TODO: Maybe move to a const
             )
         } ?: run {
@@ -72,7 +73,7 @@ fun MediaCard(
 
         Text(
             text = item.title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(8.dp),
@@ -83,7 +84,7 @@ fun MediaCard(
 
         Row(
             modifier = Modifier
-                .padding(8.dp)
+                .padding(horizontal = 8.dp)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -108,52 +109,7 @@ fun MediaCard(
 
         // TODO: Maybe create another clickable surface
         if (!isLandscape) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .clickable { watchlistCallback() },
-            ) {
-                WatchlistIcon(inWatchlist = item.inWatchlist)
-
-                Spacer(
-                    modifier = Modifier.size(8.dp)
-                )
-
-                Text(
-                    text = if (item.inWatchlist) {
-                        stringResource(id = R.string.remove_from_watchlist)
-                    } else {
-                        stringResource(id = R.string.add_to_watchlist)
-                    },
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            LongWatchlistButton(inWatchlist = item.inWatchlist, watchlistCallback = watchlistCallback)
         }
-
-        Spacer(
-            modifier = Modifier.size(16.dp)
-        )
     }
-}
-
-@Composable
-private fun WatchlistIcon(
-    inWatchlist: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Icon(
-        imageVector = if (inWatchlist) {
-            Icons.Filled.RemoveCircle
-        } else {
-            Icons.Filled.AddCircle
-        },
-        contentDescription = null,
-        modifier = modifier,
-        tint = if (inWatchlist) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            LocalContentColor.current
-        }
-    )
 }

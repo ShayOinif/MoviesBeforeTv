@@ -54,7 +54,8 @@ object MoviesModule {
         moviesRepository: MoviesRepository,
         genreRepository: GenreRepository,
         favoritesRepository: FavoritesRepository,
-    ): MovieManager = MovieManagerImpl(moviesRepository, genreRepository, favoritesRepository)
+        userRepository: UserRepository,
+    ): MovieManager = MovieManagerImpl(moviesRepository, genreRepository, favoritesRepository, userRepository)
 
     @Provides
     fun provideVideoRepository(

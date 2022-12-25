@@ -1,5 +1,6 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
 import androidx.core.content.ContextCompat
@@ -9,6 +10,7 @@ import androidx.navigation.fragment.navArgs
 
 class ErrorFragment : ErrorSupportFragment() {
 
+    @SuppressLint("PrivateResource")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = resources.getString(R.string.app_name)

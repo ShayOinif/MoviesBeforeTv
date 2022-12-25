@@ -4,10 +4,7 @@ import com.shayo.moviepoint.db.DbFavorite
 import com.shayo.moviepoint.db.LocalFavoritesDataSource
 import com.shayo.moviespoint.firestore.FirestoreFavoritesDataSource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 
 interface FavoritesRepository {
     fun setCollection(collectionName: String?)
@@ -15,6 +12,8 @@ interface FavoritesRepository {
     suspend fun toggleFavorite(id: Int, type: String)
 
     val favoritesMap: Flow<Map<Int, String>>
+
+    val collName: StateFlow<String?>
 
     suspend fun getAllFavoritesIds(collectionName: String?): List<Int>
 }
@@ -25,6 +24,7 @@ internal class FavoritesRepositoryImpl(
 ) : FavoritesRepository {
 
     private val collectionName = MutableStateFlow<String?>(null)
+    override val collName = collectionName.asStateFlow()
 
     override fun setCollection(collectionName: String?) {
         this.collectionName.value = collectionName

@@ -44,8 +44,7 @@ android {
 dependencies {
     implementation platform(libs.androidx.compose.bom)
 
-    // TODO: Maybe move to version catalog if more use
-    implementation 'io.coil-kt:coil-compose:2.2.2'
+    implementation libs.coil.compose
 
     implementation 'androidx.compose.material:material-icons-extended'
 

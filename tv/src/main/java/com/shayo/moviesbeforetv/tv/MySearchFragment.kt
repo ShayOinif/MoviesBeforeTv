@@ -58,15 +58,12 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                     if (query == "") {
                         pagingAdapter.submitData(PagingData.empty())
                     } else {
-                        combine(
-                            movieManager.getSearchFlow(query, lifecycleScope),
-                            movieManager.favoritesMap,
-                        ) { page, favorites ->
-                            page.map { pagedItem ->
-                                pagedItem.mapToBrowseResult(favorites)
-                            }
-                        }.collectLatest {
-                            pagingAdapter.submitData(it)
+                            movieManager.getSearchFlow(query, lifecycleScope).collectLatest { page ->
+                            pagingAdapter.submitData(
+                                page.map { pagedItem ->
+                                    pagedItem.mapToBrowseResult()
+                                }
+                            )
                         }
                     }
                 }

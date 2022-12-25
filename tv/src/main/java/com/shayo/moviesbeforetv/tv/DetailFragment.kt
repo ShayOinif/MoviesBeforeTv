@@ -18,7 +18,6 @@ import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import com.shayo.moviespoint.person.PersonRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -235,50 +234,39 @@ class DetailFragment : DetailsSupportFragment() {
                 launch {
                     when (navArgs.origin) {
                         DetailsOrigin.CATEGORY -> {
-                            combine(
                                 moviesManager.getCategoryFlow(
                                     type = movieType,
                                     category = navArgs.queryOrCategory,
                                     scope = viewLifecycleOwner.lifecycleScope,
                                     position = position
-                                ),
-                                moviesManager.favoritesMap
-                            ) { page, favorites ->
-                                page.map {
-                                    BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
-                                        it.movie,
-                                        favorites.containsKey(it.movie.id),
-                                        it.position
-                                    ) as BrowseMovieLoadResult.BrowseMovieLoadSuccess
-                                }
-                            }.collectLatest {
-                                moreRowAdapter.submitData(it)
+                                ).collectLatest { page ->
+                                moreRowAdapter.submitData(
+                                    page.map { movie ->
+                                        movie.mapToBrowseResult()
+                                    }
+                                )
                             }
                         }
                         DetailsOrigin.SEARCH -> {
-                            combine(
-                                moviesManager.getSearchFlow(
-                                    navArgs.queryOrCategory,
-                                    viewLifecycleOwner.lifecycleScope,
-                                    position
-                                ),
-                                moviesManager.favoritesMap,
-                            ) { page, favorites ->
-                                page.map { pagedItem ->
-                                    pagedItem.mapToBrowseResult(favorites)
-                                }
-                            }.collectLatest {
-                                moreRowAdapter.submitData(it)
+                            moviesManager.getSearchFlow(
+                                navArgs.queryOrCategory,
+                                viewLifecycleOwner.lifecycleScope,
+                                position
+                            ).collectLatest { page ->
+                                moreRowAdapter.submitData(
+                                    page.map { pagedItem ->
+                                        pagedItem.mapToBrowseResult()
+                                    }
+                                )
                             }
                         }
                         DetailsOrigin.WATCHLIST -> {
-                            moviesManager.favoritesFlow.collectLatest {
+                            moviesManager.getFavoritesFlow().collectLatest {
                                 val data = it.mapIndexed { index, result ->
                                     result.fold(
                                         onSuccess = { movie ->
                                             BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
                                                 movie,
-                                                true,
                                                 index
                                             )
                                         },
@@ -322,23 +310,21 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
         item: Any?
     ) {
         if (item is DetailedMovie) {
-            val movie = item
-
-            viewHolder.title.text = movie.title
+            viewHolder.title.text = item.title
 
             viewHolder.subtitle.maxLines = 6
 
-            viewHolder.subtitle.text = "${movie.releaseDate}\n${movie.voteAverage}/10\n" +
-                    "${movie.genres.joinToString(" - ") { it.name }}\n${movie.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
+            viewHolder.subtitle.text = "${item.releaseDate}\n${item.voteAverage}/10\n" +
+                    "${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
                     "${
-                        movie.topCastAndDirector?.let {
+                        item.topCastAndDirector?.let {
                             "Cast: ${
-                                it.cast.take(4).joinToString(", ") { it.name }
-                            }${it.director?.name?.let { "\nDirector: $it" } ?: ""}"
+                                it.cast.take(4).joinToString(", ") { credit -> credit.name }
+                            }${it.director?.name?.let { director ->"\nDirector: $director" } ?: ""}"
                         }
                     }"
 
-            viewHolder.body.text = movie.overview
+            viewHolder.body.text = item.overview
             viewHolder.body.textScaleX = 1.1F
             viewHolder.body.setTextColor(Color.WHITE)
         }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="name">"Name: %1$s</string>
+    <string name="email">"Email: %1$s</string>
+    <string name="no_user">You\'re not logged in</string>
+    <string name="login">Login/Signup</string>
+    <string name="logout">Logout</string>
+</resources>

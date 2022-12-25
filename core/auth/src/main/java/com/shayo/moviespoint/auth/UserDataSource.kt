@@ -19,7 +19,7 @@ class UserDataSource private constructor() {
         val listener =
             AuthStateListener {
                 // TODO: Handle the nullness of the email
-                trySend(it.currentUser?.run { AuthUser(displayName!!, email!!, photoUrl) })
+                trySend(it.currentUser?.run { AuthUser(displayName, email, photoUrl) })
             }
 
         FirebaseAuth.getInstance().addAuthStateListener(listener)
@@ -51,7 +51,7 @@ class UserDataSource private constructor() {
 }
 
 data class AuthUser(
-    val displayName: String,
-    val email: String,
+    val displayName: String?,
+    val email: String?,
     val photoUrl: Uri?
 )
