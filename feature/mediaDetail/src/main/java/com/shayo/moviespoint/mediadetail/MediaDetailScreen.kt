@@ -31,6 +31,8 @@ import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.youtube.player.YouTubeInitializationResult
 import com.google.android.youtube.player.YouTubePlayer
 import com.google.android.youtube.player.YouTubePlayerFragment
@@ -56,85 +58,118 @@ internal fun MediaDetailScreen(
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState())
         ) {
-            mediaDetailUiState?.videoId?.let { key ->
-                var player: YouTubePlayer? = null
+            if (
+                GoogleApiAvailability.getInstance()
+                    .isGooglePlayServicesAvailable(LocalContext.current) == ConnectionResult.SUCCESS
+            ) {
+                mediaDetailUiState?.videoId?.let { key ->
+                    var player: YouTubePlayer? = null
 
-                DisposableEffect(key1 = true) {
-                    onDispose {
-                        player?.release()
+                    DisposableEffect(key1 = true) {
+                        onDispose {
+                            player?.release()
+                        }
                     }
-                }
+                    AndroidView(
+                        factory = {
+                            val youtubeApiInitializedListener =
+                                object : YouTubePlayer.OnInitializedListener {
+                                    override fun onInitializationSuccess(
+                                        p0: YouTubePlayer.Provider?,
+                                        p1: YouTubePlayer?,
+                                        p2: Boolean
+                                    ) {
+                                        player = p1
+                                        p1?.cueVideo(key)
+                                    }
 
-                AndroidView(
-                    factory = {
-                        val youtubeApiInitializedListener =
-                            object : YouTubePlayer.OnInitializedListener {
-                                override fun onInitializationSuccess(
-                                    p0: YouTubePlayer.Provider?,
-                                    p1: YouTubePlayer?,
-                                    p2: Boolean
-                                ) {
-                                    player = p1
-                                    p1?.cueVideo(key)
+                                    override fun onInitializationFailure(
+                                        p0: YouTubePlayer.Provider?,
+                                        p1: YouTubeInitializationResult?
+                                    ) {
+                                        // TODO:
+                                    }
                                 }
 
-                                override fun onInitializationFailure(
-                                    p0: YouTubePlayer.Provider?,
-                                    p1: YouTubeInitializationResult?
-                                ) {
-                                    // TODO:
-                                }
+                            FrameLayout(it).apply {
+                                // select any R.id.X from your project, it does not matter what it is, but container must have one for transaction below.
+                                id = 99999
+
+                                val youtubeView = YouTubePlayerFragment()
+
+                                (it as ComponentActivity).fragmentManager
+                                    .beginTransaction()
+                                    .add(
+                                        id,
+                                        youtubeView,
+                                        null
+                                    )
+                                    .commit()
+
+                                youtubeView.initialize("1", youtubeApiInitializedListener)
                             }
-
-                        FrameLayout(it).apply {
-                            // select any R.id.X from your project, it does not matter what it is, but container must have one for transaction below.
-                            id = 99999
-
-                            val youtubeView = YouTubePlayerFragment()
-
-                            (it as ComponentActivity).fragmentManager
-                                .beginTransaction()
-                                .add(
-                                    id,
-                                    youtubeView,
-                                    null
-                                )
-                                .commit()
-
-                            youtubeView.initialize("1", youtubeApiInitializedListener)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                )
-            } ?: currentMedia.backdropPath?.let { backdropPath ->
-                SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .tag("Coil request for image") // TODO
-                        .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
-                        .crossfade(true)
-                        .build(),
-                    loading = {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    },
-                    error = {
-                        Icon(
-                            Icons.Default.BrokenImage,
-                            null,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    },
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth() // TODO: Maybe move to a const
-                        .aspectRatio(16 / 9F) // TODO: Maybe move to a const
-                )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                    )
+                } ?: currentMedia.backdropPath?.let { backdropPath ->
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .tag("Coil request for image") // TODO
+                            .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
+                            .crossfade(true)
+                            .build(),
+                        loading = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        },
+                        error = {
+                            Icon(
+                                Icons.Default.BrokenImage,
+                                null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        },
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth() // TODO: Maybe move to a const
+                            .aspectRatio(16 / 9F) // TODO: Maybe move to a const
+                    )
+                }
+            } else {
+                currentMedia.backdropPath?.let { backdropPath ->
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .tag("Coil request for image") // TODO
+                            .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
+                            .crossfade(true)
+                            .build(),
+                        loading = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        },
+                        error = {
+                            Icon(
+                                Icons.Default.BrokenImage,
+                                null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        },
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth() // TODO: Maybe move to a const
+                            .aspectRatio(16 / 9F) // TODO: Maybe move to a const
+                    )
+                }
             }
 
             Row {
@@ -167,13 +202,13 @@ internal fun MediaDetailScreen(
                             .padding(8.dp)
                     )
                 } ?: Image(
-                        imageVector = Icons.Outlined.CloudOff,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .width(80.dp) // TODO: Maybe move to a const
-                            .aspectRatio(2 / 3F) // TODO: Maybe move to a const
-                            .padding(8.dp)
-                    )
+                    imageVector = Icons.Outlined.CloudOff,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .width(80.dp) // TODO: Maybe move to a const
+                        .aspectRatio(2 / 3F) // TODO: Maybe move to a const
+                        .padding(8.dp)
+                )
 
                 Text(
                     text = currentMedia.title,

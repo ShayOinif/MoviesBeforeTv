@@ -70,6 +70,8 @@ dependencies {
     implementation(libs.lifecycle.runtime)
     implementation(libs.activity.compose)
 
+    implementation 'androidx.compose.material3:material3-window-size-class:1.0.1'
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.test)
     androidTestImplementation(libs.espresso.core)

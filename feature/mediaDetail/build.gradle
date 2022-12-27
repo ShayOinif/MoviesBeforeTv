@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
     alias(libs.plugins.hilt.plug)
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -49,6 +50,8 @@ dependencies {
 
     implementation project(':data:movies')
     implementation project(':common:ui')
+
+    implementation 'com.google.android.gms:play-services-base:18.1.0'
 
     implementation(libs.hilt.android)
     implementation files('libs/YouTubeAndroidPlayerApi.jar')

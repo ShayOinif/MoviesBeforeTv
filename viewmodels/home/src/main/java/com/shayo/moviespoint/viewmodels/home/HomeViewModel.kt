@@ -63,7 +63,7 @@ class HomeViewModel @Inject constructor(
         }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(1_500), // TODO:
+        started = SharingStarted.Lazily,
         initialValue = null
     )
 
