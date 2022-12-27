@@ -229,7 +229,7 @@ internal fun MediaDetailScreen(
             )
 
             Text(
-                text = "Rating: ${currentMedia.voteAverage}/10",
+                text = "Rating: ${"%.1f".format(currentMedia.voteAverage)}/10",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(8.dp),
             )

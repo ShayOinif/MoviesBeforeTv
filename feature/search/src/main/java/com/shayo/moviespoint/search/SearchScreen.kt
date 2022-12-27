@@ -249,7 +249,7 @@ internal fun SearchResults(
                                     when (item) {
                                         is PagedItem.PagedCredit -> item.credit.knownFor.take(4)
                                             .joinToString(", ") { it.title }
-                                        is PagedItem.PagedMovie -> "Rating: ${item.movie.voteAverage}/10"
+                                        is PagedItem.PagedMovie -> "Rating: ${"%.1f".format(item.movie.voteAverage)}/10"
                                     }
                                 )
 

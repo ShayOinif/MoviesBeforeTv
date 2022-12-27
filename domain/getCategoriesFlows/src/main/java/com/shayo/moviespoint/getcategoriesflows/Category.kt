@@ -11,7 +11,7 @@ data class Category(
 
 enum class CategoryName(
     internal val type: String,
-    internal val category: String,
+    val category: String,
 ) {
     POPULAR_MOVIES("movie", "popular"),
     UPCOMING_MOVIES("movie", "upcoming"),

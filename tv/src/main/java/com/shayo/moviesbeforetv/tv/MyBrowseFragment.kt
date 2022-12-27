@@ -85,8 +85,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
         homeViewModel.setup(
             withGenres = true,
             BrowseMovieLoadResult.BrowseMovieLoadSuccess::class,
-        ) { media ->
-            media.mapToBrowseResult()
+        ) { media, category ->
+            media.mapToBrowseResult(category)
         }
 
         settingsAdapter =

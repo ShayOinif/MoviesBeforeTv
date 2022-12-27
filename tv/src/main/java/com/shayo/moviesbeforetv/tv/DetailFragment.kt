@@ -2,6 +2,7 @@ package com.shayo.moviesbeforetv.tv
 
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.DetailsSupportFragment
@@ -154,7 +155,6 @@ class DetailFragment : DetailsSupportFragment() {
 
 
         lifecycleScope.launch {
-
             launch {
                 videoRepository.getTrailers(movieType, movieId).onSuccess { trailers ->
                     if (trailers.isNotEmpty()) {
@@ -234,6 +234,7 @@ class DetailFragment : DetailsSupportFragment() {
                 launch {
                     when (navArgs.origin) {
                         DetailsOrigin.CATEGORY -> {
+                            Log.d("MyTAg", navArgs.queryOrCategory)
                                 moviesManager.getCategoryFlow(
                                     type = movieType,
                                     category = navArgs.queryOrCategory,
@@ -314,7 +315,7 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
 
             viewHolder.subtitle.maxLines = 6
 
-            viewHolder.subtitle.text = "${item.releaseDate}\n${item.voteAverage}/10\n" +
+            viewHolder.subtitle.text = "${item.releaseDate}\n${"%.1f".format(item.voteAverage)}/10\n" +
                     "${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
                     "${
                         item.topCastAndDirector?.let {

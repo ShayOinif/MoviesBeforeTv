@@ -61,14 +61,14 @@ internal fun HomeScreen(
         homeViewModel.setup(
             withGenres = false,
             HomeItem::class,
-        ) { pagedMovie ->
+        ) { pagedMovie, _ ->
             with(pagedMovie.movie) {
                 HomeItem(
                     id, type,
                     MediaCardItem(
                         posterPath,
                         title,
-                        voteAverage.toString(),
+                        "%.1f".format(voteAverage),
                         releaseDate,
                         inWatchlist = isFavorite,
                     )

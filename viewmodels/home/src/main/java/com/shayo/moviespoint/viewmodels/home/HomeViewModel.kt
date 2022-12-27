@@ -36,7 +36,7 @@ class HomeViewModel @Inject constructor(
     fun <T: Any> setup(
         withGenres: Boolean,
         itemClass: KClass<T>,
-        itemMapper: (pagedMovie: PagedItem.PagedMovie) ->  T,
+        itemMapper: (pagedMovie: PagedItem.PagedMovie, category: String) ->  T,
     ) {
         homeViewModelParamsFlow.value = HomeViewModelParams(itemClass, itemMapper, withGenres)
     }
@@ -55,7 +55,7 @@ class HomeViewModel @Inject constructor(
                         },
                         flow = category.flow.map { pagedData ->
                             pagedData.map { pagedMovie ->
-                                homeViewModelParams.itemMapper(pagedMovie)
+                                homeViewModelParams.itemMapper(pagedMovie, category.name.category)
                             }
                         }.cachedIn(viewModelScope)
                     )
@@ -106,7 +106,7 @@ class HomeViewModel @Inject constructor(
 
 internal data class HomeViewModelParams<T: Any>(
     val itemClass: KClass<T>,
-    val itemMapper: (pagedMovie: PagedItem.PagedMovie) ->  T,
+    val itemMapper: (pagedMovie: PagedItem.PagedMovie, category: String) ->  T,
     val withGenres: Boolean,
 )
 

@@ -110,7 +110,7 @@ fun MediaCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text(text = item.voteAverage, style = MaterialTheme.typography.labelLarge)
+                Text(text = "%.1f".format(item.voteAverage), style = MaterialTheme.typography.labelLarge)
             }
 
             if (isLandscape) {
