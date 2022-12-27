@@ -4,7 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -19,11 +22,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.items
 import com.shayo.moviespoint.ui.MediaCard
+import com.shayo.moviespoint.ui.MediaCardItem
+import com.shayo.moviespoint.viewmodels.home.HomeViewModel
 import kotlinx.coroutines.launch
 
 internal enum class MediaRowContentTypes {
@@ -33,123 +40,159 @@ internal enum class MediaRowContentTypes {
     CATEGORY_ROW,
 }
 
+internal data class HomeItem(
+    val id: Int,
+    val type: String,
+    val mediaCardItem: MediaCardItem,
+)
+
 // TODO: Change to Media category and put in components with the row of medias, get a variable to tell which media to load or something
 // TODO: Reusable with the view model, less code
 // TODO: Handle not remembering state in the column, the row is fine
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLifecycleComposeApi::class)
 @Composable
 internal fun HomeScreen(
     //modifier: Modifier = Modifier,
     onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
     homeViewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val categories = homeViewModel.categoriesFlows
-
-    val categoriesListState = rememberSaveable(saver = LazyListState.Saver) {
-        LazyListState()
-    }
-
-    val categoriesPagingItems = categories.associate { homeCategory ->
-        Pair(homeCategory.nameRes, homeCategory.flow.collectAsLazyPagingItems())
-    }
-
-    val refreshState by remember {
-        derivedStateOf {
-            categoriesPagingItems.map { (_, pagingItems) ->
-                pagingItems.loadState.refresh
-            }
-        }
-    }
-
-    when {
-        refreshState.contains(LoadState.Loading) -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-        refreshState.any { categoryRefreshState ->
-            categoryRefreshState is LoadState.Error
-        } -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "Errors:\n${categoriesPagingItems.filter { (_, pagingItems) ->
-                        pagingItems.loadState.refresh is LoadState.Error
-                    }.map { (_, pagingItems) ->
-                        (pagingItems.loadState.refresh as LoadState.Error).error.message ?: ""
-                    }.toSet().joinToString(".\n") { it }}.\nRetry?",
-                )
-                Spacer(
-                    modifier = Modifier.size(16.dp)
-                )
-                IconButton(
-                    onClick = {
-                        categoriesPagingItems.filter { (_, pagingItems) ->
-                            pagingItems.loadState.refresh is LoadState.Error
-                        }.forEach { (_, pagingItems) ->
-                            pagingItems.refresh()
-                        }
-                    },
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
-                    colors = IconButtonDefaults.filledIconButtonColors(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(id = R.string.load_retry_desc)
+    LaunchedEffect(key1 = true) {
+        homeViewModel.setup(
+            withGenres = false,
+            HomeItem::class,
+        ) { pagedMovie ->
+            with(pagedMovie.movie) {
+                HomeItem(
+                    id, type,
+                    MediaCardItem(
+                        posterPath,
+                        title,
+                        voteAverage.toString(),
+                        releaseDate,
+                        inWatchlist = isFavorite,
                     )
+                )
+            }
+        }
+    }
+
+    val categories by homeViewModel.categoriesFlows.collectAsStateWithLifecycle()
+
+    categories?.let { currentCategories ->
+        val categoriesListState = rememberSaveable(saver = LazyListState.Saver) {
+            LazyListState()
+        }
+
+        val categoriesPagingItems = currentCategories.associate { homeCategory ->
+            Pair(homeCategory.nameRes, homeCategory.flow.collectAsLazyPagingItems())
+        }
+
+        val refreshState by remember {
+            derivedStateOf {
+                categoriesPagingItems.map { (_, pagingItems) ->
+                    pagingItems.loadState.refresh
                 }
             }
         }
-        else -> {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                state = categoriesListState,
-                contentPadding = PaddingValues(
-                    bottom = 8.dp
-                )
-            ) {
-                for (category in categories) {
-                    stickyHeader(
-                        key = -category.nameRes,
-                        contentType = MediaRowContentTypes.HEADER,
-                    ) {
-                        Card(
-                            modifier = Modifier.padding(all = 8.dp)
-                        ) {
-                            Text(
-                                text = stringResource(id = category.nameRes),
-                                modifier = Modifier
-                                    .padding(
-                                        all = 16.dp,
-                                    ),
-                                style = MaterialTheme.typography.headlineLarge,
-                            )
-                        }
-                    }
 
-                    item(
-                        key = category.nameRes,
-                        contentType = MediaRowContentTypes.CATEGORY_ROW,
+        when {
+            refreshState.contains(LoadState.Loading) -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            refreshState.any { categoryRefreshState ->
+                categoryRefreshState is LoadState.Error
+            } -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "Errors:\n${
+                            categoriesPagingItems.filter { (_, pagingItems) ->
+                                pagingItems.loadState.refresh is LoadState.Error
+                            }.map { (_, pagingItems) ->
+                                (pagingItems.loadState.refresh as LoadState.Error).error.message ?: ""
+                            }.toSet().joinToString(".\n") { it }
+                        }.\nRetry?",
+                    )
+                    Spacer(
+                        modifier = Modifier.size(16.dp)
+                    )
+                    IconButton(
+                        onClick = {
+                            categoriesPagingItems.filter { (_, pagingItems) ->
+                                pagingItems.loadState.refresh is LoadState.Error
+                            }.forEach { (_, pagingItems) ->
+                                pagingItems.refresh()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape),
+                        colors = IconButtonDefaults.filledIconButtonColors(),
                     ) {
-                        MediaRow(
-                            medias = categoriesPagingItems[category.nameRes] ?: throw Exception("Missing category!"),
-                            watchlistCallback = homeViewModel::watchlistClick,
-                            onMediaClick = onMediaClick
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(id = R.string.load_retry_desc)
                         )
                     }
                 }
             }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    state = categoriesListState,
+                    contentPadding = PaddingValues(
+                        bottom = 8.dp
+                    )
+                ) {
+                    for (category in currentCategories) {
+                        stickyHeader(
+                            key = -category.nameRes,
+                            contentType = MediaRowContentTypes.HEADER,
+                        ) {
+                            Card(
+                                modifier = Modifier.padding(all = 8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(id = category.nameRes),
+                                    modifier = Modifier
+                                        .padding(
+                                            all = 16.dp,
+                                        ),
+                                    style = MaterialTheme.typography.headlineLarge,
+                                )
+                            }
+                        }
+
+                        item(
+                            key = category.nameRes,
+                            contentType = MediaRowContentTypes.CATEGORY_ROW,
+                        ) {
+                            MediaRow(
+                                medias = categoriesPagingItems[category.nameRes] as? LazyPagingItems<HomeItem>
+                                    ?: throw Exception("Missing category!"), // TODO: Handle nullness and uncheked cast
+                                watchlistCallback = homeViewModel::watchlistClick,
+                                onMediaClick = onMediaClick
+                            )
+                        }
+                    }
+                }
+            }
         }
+    } ?: Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
     }
 }
 
@@ -191,13 +234,13 @@ internal fun MediaRow(
                 key = { item ->
                     item.id
                 },
-            ) { item ->
-                item?.let {
-                    MediaCard(
-                        item = item.mediaCardItem,
-                        watchlistCallback = { watchlistCallback(item.id, item.type) },
-                        onClickCallback = { onMediaClick(item.id, item.type) }
-                    )
+            ) { homeItem ->
+                homeItem?.let {
+                        MediaCard(
+                            item = homeItem.mediaCardItem,
+                            watchlistCallback = { watchlistCallback(homeItem.id, homeItem.type) },
+                            onClickCallback = { onMediaClick(homeItem.id, homeItem.type) }
+                        )
                 }
             }
 
@@ -299,7 +342,8 @@ internal fun LoadError(
             .padding(end = 80.dp),
     ) {
         Text(
-            text = message?.let { "Error: $it. Retry?" } ?: stringResource(id = R.string.error_loading_text),
+            text = message?.let { "Error: $it. Retry?" }
+                ?: stringResource(id = R.string.error_loading_text),
             textAlign = TextAlign.Center,
         )
 

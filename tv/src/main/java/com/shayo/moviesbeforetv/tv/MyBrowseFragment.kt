@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.paging.PagingDataAdapter
 import androidx.leanback.widget.*
@@ -15,7 +16,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.paging.map
+import androidx.paging.PagingData
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
 import com.shayo.movies.Credit
@@ -24,6 +25,7 @@ import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
+import com.shayo.moviespoint.viewmodels.home.HomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -43,18 +45,12 @@ class MyBrowseFragment : BrowseSupportFragment() {
     @Inject
     lateinit var userRepository: UserRepository
 
+    private val homeViewModel by viewModels<HomeViewModel>()
+
     private val categoriesAdapters =
         mutableListOf<PagingDataAdapter<BrowseMovieLoadResult.BrowseMovieLoadSuccess>>()
 
     private lateinit var backgroundViewModel: BackgroundViewModel
-
-    // TODO: Get categories from some where else
-    private val categories = listOf(
-        Triple("Popular Movies", "movie", "popular"),
-        Triple("Upcoming Movies", "movie", "upcoming"),
-        Triple("Popular Tv Shows", "tv", "popular"),
-        Triple("Top Rated Tv Shows", "tv", "top_rated"),
-    )
 
     private lateinit var favoritesAdapter: ArrayObjectAdapter
 
@@ -86,19 +82,11 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
         val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
 
-        val browseMovieLoadSuccessDiff = BrowseMovieLoadSuccessDiff()
-
-        categories.forEach { (header, _, _) ->
-            val pagingAdapter = PagingDataAdapter(cardPresenter, browseMovieLoadSuccessDiff)
-
-            rowsAdapter.add(
-                ListRow(
-                    HeaderItem(header),
-                    pagingAdapter
-                )
-            )
-
-            categoriesAdapters.add(pagingAdapter)
+        homeViewModel.setup(
+            withGenres = true,
+            BrowseMovieLoadResult.BrowseMovieLoadSuccess::class,
+        ) { media ->
+            media.mapToBrowseResult()
         }
 
         settingsAdapter =
@@ -140,60 +128,83 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                categories.forEachIndexed { index, (_, type, category) ->
-                    launch {
-                        movieManager.getCategoryFlow(
-                            type = type,
-                            category = category,
-                            scope = viewLifecycleOwner.lifecycleScope,
-                        ).collectLatest { pagedData ->
-                            categoriesAdapters[index].submitData(
-                                pagedData.map { pagedMovie ->
-                                    pagedMovie.mapToBrowseResult(category)
+                launch {
+                    homeViewModel.categoriesFlows.collectLatest { categories ->
+                        categories?.let {
+                            val rowsAdapter = (adapter as ArrayObjectAdapter)
+
+                            if (rowsAdapter.size() < 2) {
+                                val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
+
+                                val browseMovieLoadSuccessDiff = BrowseMovieLoadSuccessDiff()
+
+                                categories.forEachIndexed { index, homeCategory ->
+                                    val pagingAdapter = PagingDataAdapter(cardPresenter, browseMovieLoadSuccessDiff)
+
+                                    rowsAdapter.add(
+                                        index,
+                                        ListRow(
+                                            HeaderItem(getString(homeCategory.nameRes)),
+                                            pagingAdapter
+                                        )
+                                    )
+
+                                    categoriesAdapters.add(pagingAdapter)
                                 }
-                            )
+                            }
+
+                            categories.forEachIndexed { index, homeCategory ->
+                                launch {
+                                    homeCategory.flow.collectLatest { pagedData ->
+
+                                        categoriesAdapters[index].submitData(
+                                            pagedData as PagingData<BrowseMovieLoadResult.BrowseMovieLoadSuccess> // TODO:
+                                        )
+                                    }
+                                }
+
+                                /*launch {
+                                    categoriesAdapters[index].loadStateFlow.collectLatest { state ->
+
+                                        when (state.refresh) {
+                                            is LoadState.Error -> {
+
+                                                reloadList.add {
+                                                    categoriesAdapters[index].refresh()
+                                                }
+                                            }
+
+                                            else -> {
+
+                                                reloadList.remove {
+                                                    categoriesAdapters[index].refresh()
+                                                }
+                                            }
+                                        }
+
+                                        when (state.mediator?.append) {
+                                            is LoadState.Error -> {
+                                                Log.d("MyTag", "append problem")
+                                                reloadList.add {
+                                                    categoriesAdapters[index].retry()
+                                                }
+                                            }
+                                            else -> {
+                                                Log.d("MyTag", "append ok")
+                                                reloadList.remove {
+                                                    categoriesAdapters[index].retry()
+                                                }
+                                            }
+                                        }
+
+                                        if (state.append.endOfPaginationReached) {
+                                            Log.d("MyTag", "end of pagination")
+                                        }
+                                    }
+                                }*/
+                            }
                         }
                     }
-
-                    /*launch {
-                        categoriesAdapters[index].loadStateFlow.collectLatest { state ->
-
-                            when (state.refresh) {
-                                is LoadState.Error -> {
-
-                                    reloadList.add {
-                                        categoriesAdapters[index].refresh()
-                                    }
-                                }
-
-                                else -> {
-
-                                    reloadList.remove {
-                                        categoriesAdapters[index].refresh()
-                                    }
-                                }
-                            }
-
-                            when (state.mediator?.append) {
-                                is LoadState.Error -> {
-                                    Log.d("MyTag", "append problem")
-                                    reloadList.add {
-                                        categoriesAdapters[index].retry()
-                                    }
-                                }
-                                else -> {
-                                    Log.d("MyTag", "append ok")
-                                    reloadList.remove {
-                                        categoriesAdapters[index].retry()
-                                    }
-                                }
-                            }
-
-                            if (state.append.endOfPaginationReached) {
-                                Log.d("MyTag", "end of pagination")
-                            }
-                        }
-                    }*/
                 }
 
                 launch {

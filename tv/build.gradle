@@ -33,6 +33,7 @@ dependencies {
     implementation project(':data:movies')
     implementation project(':data:person')
     implementation project(':common:work')
+    implementation project(':viewmodels:home')
 
     implementation libs.firebase.ui.auth
 

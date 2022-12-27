@@ -15,6 +15,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         libs {
             version('hilt', '2.44')
+            version('lifecycle', '2.5.1')
 
             library('hilt-android', 'com.google.dagger','hilt-android').versionRef('hilt')
             library('hilt-compiler', 'com.google.dagger','hilt-compiler').versionRef('hilt')
@@ -35,7 +36,9 @@ dependencyResolutionManagement {
             library('coil-compose', 'io.coil-kt:coil-compose:2.2.2')
 
             library('android-core', 'androidx.core:core-ktx:1.9.0')
+
             library('lifecycle-runtime', 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1')
+
             library('activity-compose', 'androidx.activity:activity-compose:1.6.1')
 
             library('test', 'androidx.test.ext:junit:1.1.4')
@@ -69,3 +72,4 @@ include ':feature:mediaDetail'
 include ':domain:getCategoriesFlows'
 include ':feature:search'
 include ':feature:person'
+include ':viewmodels:home'

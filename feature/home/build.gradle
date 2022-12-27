@@ -47,8 +47,9 @@ dependencies {
 
     implementation platform(libs.androidx.compose.bom)
 
+    // TODO: make a module for the model Movie, this is why we use the movies module, everything else comes from :viewmodels:home
     implementation project(':data:movies')
-    implementation project(':domain:getCategoriesFlows')
+    implementation project(':viewmodels:home')
     implementation project(':common:ui')
 
     implementation(libs.hilt.android)
@@ -62,6 +63,7 @@ dependencies {
     implementation(libs.android.core)
     implementation(libs.lifecycle.runtime)
     implementation(libs.activity.compose)
+    implementation libs.lifecycle.runtime.compose
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.test)
