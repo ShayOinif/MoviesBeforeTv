@@ -2,7 +2,6 @@ package com.shayo.moviesbeforetv.tv
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.leanback.app.DetailsSupportFragment
@@ -234,13 +233,12 @@ class DetailFragment : DetailsSupportFragment() {
                 launch {
                     when (navArgs.origin) {
                         DetailsOrigin.CATEGORY -> {
-                            Log.d("MyTAg", navArgs.queryOrCategory)
-                                moviesManager.getCategoryFlow(
-                                    type = movieType,
-                                    category = navArgs.queryOrCategory,
-                                    scope = viewLifecycleOwner.lifecycleScope,
-                                    position = position
-                                ).collectLatest { page ->
+                            moviesManager.getCategoryFlow(
+                                type = movieType,
+                                category = navArgs.queryOrCategory,
+                                scope = viewLifecycleOwner.lifecycleScope,
+                                position = position
+                            ).collectLatest { page ->
                                 moreRowAdapter.submitData(
                                     page.map { movie ->
                                         movie.mapToBrowseResult()
@@ -315,15 +313,16 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
 
             viewHolder.subtitle.maxLines = 6
 
-            viewHolder.subtitle.text = "${item.releaseDate}\n${"%.1f".format(item.voteAverage)}/10\n" +
-                    "${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
-                    "${
-                        item.topCastAndDirector?.let {
-                            "Cast: ${
-                                it.cast.take(4).joinToString(", ") { credit -> credit.name }
-                            }${it.director?.name?.let { director ->"\nDirector: $director" } ?: ""}"
-                        }
-                    }"
+            viewHolder.subtitle.text =
+                "${item.releaseDate}\n${"%.1f".format(item.voteAverage)}/10\n" +
+                        "${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
+                        "${
+                            item.topCastAndDirector?.let {
+                                "Cast: ${
+                                    it.cast.take(4).joinToString(", ") { credit -> credit.name }
+                                }${it.director?.name?.let { director -> "\nDirector: $director" } ?: ""}"
+                            }
+                        }"
 
             viewHolder.body.text = item.overview
             viewHolder.body.textScaleX = 1.1F
