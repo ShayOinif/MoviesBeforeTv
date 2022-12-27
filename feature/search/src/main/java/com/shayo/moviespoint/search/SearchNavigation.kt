@@ -8,18 +8,23 @@ const val SearchGraphRoutePattern = "search"
 internal const val searchRoutePattern = "searchScreen"
 
 fun NavGraphBuilder.searchGraph(
+    onMediaClicked: (mediaId: Int, mediaType: String) -> Unit,
+    onPersonClicked: (personId: Int) -> Unit,
     //navController: NavController,
 ) {
     navigation(
         startDestination = searchRoutePattern,
         route = SearchGraphRoutePattern,
     ) {
-        searchScreen()
+        searchScreen(onMediaClicked, onPersonClicked)
     }
 }
 
-internal fun NavGraphBuilder.searchScreen() {
+internal fun NavGraphBuilder.searchScreen(
+    onMediaClicked: (mediaId: Int, mediaType: String) -> Unit,
+    onPersonClicked: (personId: Int) -> Unit,
+) {
     composable(route =searchRoutePattern,) {
-        SearchScreen()
+        SearchScreen(onMediaClicked, onPersonClicked)
     }
 }

@@ -1,6 +1,5 @@
 package com.shayo.moviespoint.account
 
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement.Absolute.spacedBy
 import androidx.compose.foundation.layout.Column
@@ -37,14 +36,17 @@ import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 @Composable
 internal fun AccountScreen(
     //modifier: Modifier = Modifier,
+    postMessageSnackBar: (message: String) -> Unit,
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
     val user by accountViewModel.userFlow.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = FirebaseAuthUIActivityResultContract(),
-        onResult = {
-            Log.d("MyTag", "${it.idpResponse?.error}")
+        onResult = { result ->
+            result.idpResponse?.error?.message?.let { errorMessage ->
+                postMessageSnackBar("Error: $errorMessage")
+            }
         })
 
     Column(

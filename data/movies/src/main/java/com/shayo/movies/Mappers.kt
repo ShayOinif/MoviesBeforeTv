@@ -16,5 +16,6 @@ fun NetworkMovie<Int>.mapToMovieWithoutGenres(type: String? = null) =
         },
         type ?: movieType ?: throw(Exception("Error in data:movies Mappers.kt/mapToMovieWithoutGenres, couldn't get type")),
         runtime,
-        popularity
+        popularity,
+        desc = desc,
     )

@@ -11,8 +11,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.shayo.movies.FavoritesRepository
 import com.shayo.movies.GenreRepository
+import com.shayo.movies.MovieManager
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviespoint.person.Person
 import com.shayo.moviespoint.person.PersonRepository
@@ -32,7 +32,7 @@ class PersonFragment : DetailsSupportFragment() {
     lateinit var personRepository: PersonRepository
 
     @Inject
-    lateinit var favoritesRepository: FavoritesRepository
+    lateinit var movieManager: MovieManager
 
     @Inject
     lateinit var genreRepository: GenreRepository
@@ -114,7 +114,7 @@ class PersonFragment : DetailsSupportFragment() {
 
                 repeatOnLifecycle(Lifecycle.State.RESUMED) {
                     combine(
-                        favoritesRepository.favoritesMap,
+                        movieManager.favoritesMap,
                         genreRepository.movieGenresFlow
                     ) { favoritesMap, genreMap ->
                         Pair(favoritesMap, genreMap)

@@ -8,19 +8,22 @@ const val AccountGraphRoutePattern = "account"
 
 fun NavGraphBuilder.accountGraph(
     //navController: NavController,
+    postMessageSnackBar: (message: String) -> Unit,
 ) {
     navigation(
         startDestination = accountRoutePattern,
         route = AccountGraphRoutePattern,
     ) {
-        homeScreen()
+        homeScreen(postMessageSnackBar)
     }
 }
 
 internal const val accountRoutePattern = "accountScreen"
 
-internal fun NavGraphBuilder.homeScreen() {
+internal fun NavGraphBuilder.homeScreen(
+    postMessageSnackBar: (message: String) -> Unit,
+) {
     composable(route = accountRoutePattern) {
-        AccountScreen()
+        AccountScreen(postMessageSnackBar)
     }
 }

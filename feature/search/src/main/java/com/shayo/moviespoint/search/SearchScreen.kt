@@ -1,21 +1,28 @@
 package com.shayo.moviespoint.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
@@ -27,11 +34,14 @@ import androidx.paging.compose.items
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.shayo.movies.PagedItem
+import com.shayo.moviespoint.ui.LongWatchlistButton
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLifecycleComposeApi::class)
 @Composable
 internal fun SearchScreen(
     //modifier: Modifier = Modifier,
+    onMediaClicked: (mediaId: Int, mediaType: String) -> Unit,
+    onPersonClicked: (personId: Int) -> Unit,
     searchViewModel: SearchViewModel = hiltViewModel(),
 ) {
     val appBarState = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -39,15 +49,27 @@ internal fun SearchScreen(
 
     val query by searchViewModel.query.collectAsStateWithLifecycle()
 
+    BackHandler(
+        enabled = query.isNotEmpty()
+    ) {
+        searchViewModel.onQueryTextChange("")
+    }
+
     Scaffold(
         modifier = scaffoldModifier,
         topBar = {
             TopAppBar(
-                title = {
+                title = {},
+                actions = {
+                    val focusRequester = remember { FocusRequester() }
+
                     OutlinedTextField(
                         value = query,
                         onValueChange = searchViewModel::onQueryTextChange,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .focusRequester(focusRequester),
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -61,12 +83,22 @@ internal fun SearchScreen(
                         },
                         placeholder = {
                             Text(
-                                text = "Search", // TODO: Move to string res
+                                text = "Type To Search", // TODO: Move to string res
                             )
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = {
+                                    searchViewModel.onQueryTextChange("")
+                                    focusRequester.requestFocus()
+                                },
+                            ) {
+                                Icon(Icons.Default.Delete, "Clear Search")
+                            }
                         },
                         enabled = true,
                         singleLine = true,
-                        maxLines =  1, // TODO: Make is a search keyboard,
+                        maxLines = 1, // TODO: Make is a search keyboard,
                     )
                 },
                 scrollBehavior = appBarState,
@@ -75,18 +107,25 @@ internal fun SearchScreen(
     ) { paddingValues ->
         if (query.isEmpty()) {
             Box(
-                modifier = Modifier.padding(paddingValues).fillMaxSize(),
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Type to search",
-                    style = MaterialTheme.typography.headlineMedium
+                    text = "Search For Movies, TV Shows and Persons",
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
         } else {
             SearchResults(
                 results = searchViewModel.searchFlow.collectAsLazyPagingItems(),
-                modifier = Modifier.padding(paddingValues)
+                onMediaClicked = onMediaClicked,
+                onPersonClicked = onPersonClicked,
+                onWatchlistClick = searchViewModel::watchlistClick,
+                modifier = Modifier.padding(paddingValues),
             )
         }
     }
@@ -97,31 +136,55 @@ internal fun SearchScreen(
 @Composable
 internal fun SearchResults(
     results: LazyPagingItems<PagedItem>,
+    onMediaClicked: (mediaId: Int, mediaType: String) -> Unit,
+    onPersonClicked: (personId: Int) -> Unit,
+    onWatchlistClick: (id: Int, type: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    when (results.loadState.refresh) {
-        is LoadState.Loading -> { // TODO: Better handle everything, maybe make a better use of hte media header below
+    when {
+        results.loadState.refresh is LoadState.Loading -> { // TODO: Better handle everything, maybe make a better use of hte media header below
             LinearProgressIndicator(
                 modifier = modifier.fillMaxWidth()
             )
         }
-        is LoadState.Error -> {
+        results.loadState.refresh is LoadState.Error -> {
             Column(
                 modifier = modifier
                     .padding(horizontal = 16.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = "Error loading"//stringResource(id = R.string.error_loading_text)
+                    text = "Error: ${(results.loadState.refresh as LoadState.Error).error.message}, Retry?",
                 )
 
-                IconButton(onClick = { results.refresh() }) {
+                Spacer(modifier = Modifier.size(8.dp))
+
+                IconButton(
+                    onClick = { results.refresh() },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape),
+                    colors = IconButtonDefaults.filledIconButtonColors(),
+                ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = null//stringResource(id = R.string.load_retry_desc)
+                        contentDescription = stringResource(id = R.string.load_retry_desc),
                     )
                 }
+            }
+        }
+        results.itemCount == 0 -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "No Results",
+                    style = MaterialTheme.typography.headlineMedium
+                )
             }
         }
         else -> {
@@ -152,9 +215,18 @@ internal fun SearchResults(
                     }
                 ) { pagedItem ->
                     pagedItem?.let { item ->
-
-
                         ListItem(
+                            modifier = Modifier.clickable {
+                                when (item) {
+                                    is PagedItem.PagedCredit -> {
+                                        onPersonClicked(item.credit.id)
+                                    }
+                                    is PagedItem.PagedMovie -> onMediaClicked(
+                                        item.movie.id,
+                                        item.movie.type
+                                    )
+                                }
+                            },
                             headlineText = {
                                 Text(
                                     when (item) {
@@ -175,23 +247,37 @@ internal fun SearchResults(
 
                                 Text(
                                     when (item) {
-                                        is PagedItem.PagedCredit -> item.credit.knownFor.take(4).joinToString(", ") { it.title }
-                                        is PagedItem.PagedMovie -> "Average score: ${item.movie.voteAverage}"
+                                        is PagedItem.PagedCredit -> item.credit.knownFor.take(4)
+                                            .joinToString(", ") { it.title }
+                                        is PagedItem.PagedMovie -> "Rating: ${item.movie.voteAverage}/10"
                                     }
                                 )
+
+                                if (item is PagedItem.PagedMovie) {
+                                    LongWatchlistButton(inWatchlist = item.movie.isFavorite) {
+                                        onWatchlistClick(item.movie.id, item.movie.type)
+                                    }
+                                }
                             },
                             leadingContent = {
                                 // TODO: This also used in the cards above, extract to a shared component
 
                                 val posterPath = when (item) {
-                                    is PagedItem.PagedCredit -> item.credit.profilePath?.let {"https://image.tmdb.org/t/p/original${item.credit.profilePath}"}
-                                    is PagedItem.PagedMovie -> item.movie.posterPath?.let {"https://image.tmdb.org/t/p/w154${item.movie.posterPath}" }
+                                    is PagedItem.PagedCredit -> item.credit.profilePath?.let { "https://image.tmdb.org/t/p/original${item.credit.profilePath}" }
+                                    is PagedItem.PagedMovie -> item.movie.posterPath?.let { "https://image.tmdb.org/t/p/w154${item.movie.posterPath}" }
                                 }
 
-                                if (posterPath != null) {
+                                posterPath?.let {
+                                    var retryHash by remember { mutableStateOf(0) }
+
                                     SubcomposeAsyncImage(
                                         model = ImageRequest.Builder(LocalContext.current)
                                             .data(posterPath)
+                                            .setParameter(
+                                                "retry_hash",
+                                                retryHash,
+                                                memoryCacheKey = null
+                                            )
                                             .crossfade(true)
                                             .build(),
                                         loading = {
@@ -203,52 +289,58 @@ internal fun SearchResults(
                                             }
                                         },
                                         error = {
-                                            Icon(
-                                                Icons.Filled.BrokenImage,
-                                                null,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                IconButton(onClick = { retryHash++ }) {
+                                                    Icon(
+                                                        Icons.Filled.Refresh,
+                                                        null,
+                                                    )
+                                                }
+                                            }
                                         },
                                         contentDescription = null,
                                         modifier = Modifier
                                             .widthIn(max = 92.dp) // TODO: Maybe move to a const and get the smaller image from config repo
                                             .aspectRatio(2 / 3F) // TODO: Maybe move to a const
                                     )
-                                } else {
-                                    Image(
-                                        imageVector = Icons.Outlined.CloudOff,
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .widthIn(max = 92.dp) // TODO: Maybe move to a const
-                                            .aspectRatio(2 / 3F) // TODO: Maybe move to a const
-                                            .padding(horizontal = 16.dp)
-                                    )
-                                }
-                            }
-                        )
-                    } ?: run {
-                        ListItem(
-                            headlineText = {
-                                Text("Loading")
-                            },
-                            overlineText = {
-                                Text("Loading")
-                            },
-                            supportingText = {
-                                Text("Loading")
-                            },
-                            leadingContent = {
-                                Box(
+                                } ?: Image(
+                                    imageVector = when (item) {
+                                        is PagedItem.PagedCredit -> Icons.Default.Person
+                                        is PagedItem.PagedMovie -> Icons.Default.LocalMovies
+                                    },
+                                    contentDescription = null,
                                     modifier = Modifier
-                                        .widthIn(max = 92.dp) // TODO: Maybe move to a const and get the smaller image from config repo
-                                        .aspectRatio(2 / 3F), // TODO: Maybe move to a const,
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
+                                        .widthIn(max = 92.dp) // TODO: Maybe move to a const
+                                        .aspectRatio(2 / 3F) // TODO: Maybe move to a const
+                                        .padding(horizontal = 16.dp),
+                                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground)
+                                )
                             }
                         )
-                    }
+                    } ?: ListItem(
+                        headlineText = {
+                            Text("Loading")
+                        },
+                        overlineText = {
+                            Text("Loading")
+                        },
+                        supportingText = {
+                            Text("Loading")
+                        },
+                        leadingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(max = 92.dp) // TODO: Maybe move to a const and get the smaller image from config repo
+                                    .aspectRatio(2 / 3F), // TODO: Maybe move to a const,
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                    )
 
                     Divider()
                 }
@@ -283,8 +375,6 @@ internal const val FOOTER_ERROR_KEY = -4
 internal enum class MediaRowContentTypes {
     LOADING,
     ERROR,
-    HEADER,
-    CATEGORY_ROW,
 }
 
 internal fun LazyListScope.mediaRowHeader(
@@ -306,7 +396,10 @@ internal fun LazyListScope.mediaRowHeader(
                 key = if (append) FOOTER_ERROR_KEY else HEADER_ERROR_KEY,
                 contentType = MediaRowContentTypes.ERROR,
             ) {
-                LoadError(retryCallback = retryCallback)
+                LoadError(
+                    message = state.error.message,
+                    retryCallback = retryCallback
+                )
             }
         }
         else -> {}
@@ -317,30 +410,45 @@ internal fun LazyListScope.mediaRowHeader(
 internal fun LoadingBox(
     modifier: Modifier = Modifier,
 ) {
-    CircularProgressIndicator(
-        modifier = modifier
-            .padding(horizontal = 16.dp)
-    )
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            modifier = modifier
+                .padding(16.dp)
+        )
+    }
 }
 
 @Composable
 internal fun LoadError(
+    message: String?,
     retryCallback: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
-            .padding(horizontal = 16.dp),
+            .fillMaxWidth()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Error loading"//stringResource(id = R.string.error_loading_text)
+            text = "Error${message?.let { ": $it" } ?: " Loading"}, Retry?"
         )
 
-        IconButton(onClick = { retryCallback() }) {
+        Spacer(modifier = Modifier.size(8.dp))
+
+        IconButton(
+            onClick = retryCallback,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape),
+            colors = IconButtonDefaults.filledIconButtonColors(),
+        ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
-                contentDescription = null//stringResource(id = R.string.load_retry_desc)
+                contentDescription = stringResource(id = R.string.load_retry_desc),
             )
         }
     }

@@ -41,6 +41,8 @@ data class PersonNetworkServiceResponse(
     val profilePath: String?,
     @SerializedName("combined_credits")
     val combinedCredits: NetworkCombinedCredits,
+    @SerializedName("known_for_department")
+    val knownForDepartment: String?,
 )
 
 data class NetworkCombinedCredits(

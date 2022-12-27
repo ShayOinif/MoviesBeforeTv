@@ -11,12 +11,15 @@ const val MediaDetailGraphRoutePattern = "mediaDetail"
 
 fun NavGraphBuilder.mediaDetailGraph(
     //navController: NavController,
+    personClick: (personId: Int) -> Unit,
 ) {
     navigation(
         startDestination = mediaDetailRoutePattern,
         route = MediaDetailGraphRoutePattern,
     ) {
-        mediaDetailScreen()
+        mediaDetailScreen(
+            personClick
+        )
     }
 }
 
@@ -26,7 +29,9 @@ fun NavController.navigateToMediaDetail(mediaId: Int, mediaType: String,) {
 
 internal const val mediaDetailRoutePattern = "mediaDetailScreen"
 
-internal fun NavGraphBuilder.mediaDetailScreen() {
+internal fun NavGraphBuilder.mediaDetailScreen(
+    personClick: (personId: Int) -> Unit,
+) {
     composable(route = "$mediaDetailRoutePattern/{mediaId}/{mediaType}",
         arguments = listOf(
             navArgument(
@@ -46,6 +51,7 @@ internal fun NavGraphBuilder.mediaDetailScreen() {
         MediaDetailScreen(
             mediaId,
             mediaType,
+            personClick
         )
     }
 }

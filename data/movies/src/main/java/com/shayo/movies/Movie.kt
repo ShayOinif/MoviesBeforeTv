@@ -17,7 +17,8 @@ data class Movie(
     val type: String,
     val runtime: Int?,
     val popularity: Double? = null,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val desc: String? = null
 ) : Parcelable
 
 internal fun Movie.mapGenres(genresMap: Map<Int, Genre>) =

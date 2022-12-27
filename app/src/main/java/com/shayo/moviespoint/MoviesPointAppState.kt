@@ -9,6 +9,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.shayo.moviespoint.account.AccountGraphRoutePattern
 import com.shayo.moviespoint.common.snackbar.SnackBarManager
+import com.shayo.moviespoint.common.snackbar.SnackBarMessage
 import com.shayo.moviespoint.home.HomeGraphRoutePattern
 import com.shayo.moviespoint.search.SearchGraphRoutePattern
 import com.shayo.moviespoint.watchlist.WatchlistGraphRoutePattern
@@ -30,8 +31,25 @@ class MoviesPointAppState(
     init {
         coroutineScope.launch {
             launch {
-                snackBarManager.messages.filterNotNull().collect { message ->
-                    snackBarHostState.showSnackbar(message)
+                snackBarManager.messages.filterNotNull().collectLatest { message ->
+                    when (message) {
+                        is SnackBarMessage.NetworkMessage -> {
+                            if (message.dismiss) {
+                                snackBarHostState.currentSnackbarData?.dismiss()
+                            } else {
+                                snackBarHostState.showSnackbar(
+                                    message.message,
+                                    if (message.perm) {
+                                        ""
+                                    } else null,
+                                    message.perm
+                                )
+                            }
+                        }
+                        else -> {
+                            snackBarHostState.showSnackbar(message.message)
+                        }
+                    }
                 }
             }
             launch {
@@ -66,6 +84,10 @@ class MoviesPointAppState(
             launchSingleTop = true
             restoreState = true
         }
+    }
+
+    fun postSnackBarMessage(message: String) {
+        snackBarManager.messages.value = SnackBarMessage.RegularMessage(message)
     }
 }
 

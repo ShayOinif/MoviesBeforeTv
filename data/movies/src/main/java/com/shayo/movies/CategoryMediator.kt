@@ -1,6 +1,5 @@
 package com.shayo.movies
 
-import android.util.Log
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
@@ -33,7 +32,6 @@ class CategoryMediator(
                         endOfPaginationReached = true
                     )
 
-                Log.d("MyTag", "Getting page: ${lastItem.position / 20 + 2}")
                 lastItem.position / 20 + 2
             }
         }

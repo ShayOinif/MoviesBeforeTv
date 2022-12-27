@@ -13,14 +13,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +43,7 @@ internal fun MediaDetailScreen(
     //modifier: Modifier = Modifier,
     mediaId: Int,
     mediaType: String,
+    personClick: (personId: Int) -> Unit,
     mediaDetailViewModel: MediaDetailViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(key1 = true) {
@@ -66,16 +67,24 @@ internal fun MediaDetailScreen(
 
                 AndroidView(
                     factory = {
-                        val youtubeApiInitializedListener = object : YouTubePlayer.OnInitializedListener {
-                            override fun onInitializationSuccess(p0: YouTubePlayer.Provider?, p1: YouTubePlayer?, p2: Boolean) {
-                                player = p1
-                                p1?.cueVideo(key)
-                            }
+                        val youtubeApiInitializedListener =
+                            object : YouTubePlayer.OnInitializedListener {
+                                override fun onInitializationSuccess(
+                                    p0: YouTubePlayer.Provider?,
+                                    p1: YouTubePlayer?,
+                                    p2: Boolean
+                                ) {
+                                    player = p1
+                                    p1?.cueVideo(key)
+                                }
 
-                            override fun onInitializationFailure(p0: YouTubePlayer.Provider?, p1: YouTubeInitializationResult?) {
-                                // TODO:
+                                override fun onInitializationFailure(
+                                    p0: YouTubePlayer.Provider?,
+                                    p1: YouTubeInitializationResult?
+                                ) {
+                                    // TODO:
+                                }
                             }
-                        }
 
                         FrameLayout(it).apply {
                             // select any R.id.X from your project, it does not matter what it is, but container must have one for transaction below.
@@ -126,14 +135,13 @@ internal fun MediaDetailScreen(
                         .fillMaxWidth() // TODO: Maybe move to a const
                         .aspectRatio(16 / 9F) // TODO: Maybe move to a const
                 )
-            } ?: run {
-                // TODO:
             }
 
             Row {
                 currentMedia.posterPath?.let { posterPath ->
                     SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current).tag("Coil request for image") // TODO
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .tag("Coil request for image") // TODO
                             .data("https://image.tmdb.org/t/p/w154$posterPath") // TODO: Get base url from somewhere else
                             .crossfade(true)
                             .build(),
@@ -158,8 +166,7 @@ internal fun MediaDetailScreen(
                             .aspectRatio(2 / 3F) // TODO: Maybe move to a const
                             .padding(8.dp)
                     )
-                } ?: run {
-                    Image(
+                } ?: Image(
                         imageVector = Icons.Outlined.CloudOff,
                         contentDescription = null,
                         modifier = Modifier
@@ -167,7 +174,6 @@ internal fun MediaDetailScreen(
                             .aspectRatio(2 / 3F) // TODO: Maybe move to a const
                             .padding(8.dp)
                     )
-                }
 
                 Text(
                     text = currentMedia.title,
@@ -209,68 +215,100 @@ internal fun MediaDetailScreen(
                     )
                 }
 
-                Text(
-                    text = "Cast:",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(8.dp),
-                )
+                if (topCastAndDirector.cast.isNotEmpty()) {
+                    Text(
+                        text = "Cast:",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(8.dp),
+                    )
 
-                LazyRow(
-                    horizontalArrangement = spacedBy(8.dp),
-                    contentPadding = PaddingValues(8.dp)
-                ) {
-                    items(
-                        items = topCastAndDirector.cast,
-                        key = { credit ->
-                            credit.id
-                        },
-                    ) { credit ->
-                        // TODO: Maybe move to common for reuse
+                    LazyRow(
+                        horizontalArrangement = spacedBy(8.dp),
+                        contentPadding = PaddingValues(8.dp)
+                    ) {
+                        items(
+                            items = topCastAndDirector.cast,
+                            key = { credit ->
+                                credit.id
+                            },
+                        ) { credit ->
+                            // TODO: Maybe move to common for reuse
 
-                        Card(
-                            modifier = Modifier
-                                .width(140.dp)
-                                .clickable {
-                                    // TODO:
-                                }
-                        ) {
-                            SubcomposeAsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .tag("Coil request for image") // TODO
-                                    .data("https://image.tmdb.org/t/p/w185${credit.profilePath}")
-                                    .crossfade(true)
-                                    .build(),
-                                error = {
-                                    Icon(
-                                        Icons.Default.BrokenImage,
-                                        null,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                },
-                                contentDescription = null,
+                            Card(
                                 modifier = Modifier
                                     .width(140.dp)
-                                    .aspectRatio(2 / 3F),
-                                contentScale = ContentScale.FillWidth,
-                            )
+                                    .clickable {
+                                        personClick(credit.id)
+                                    }
+                            ) {
+                                credit.profilePath?.let {
+                                    var retryHash by remember { mutableStateOf(0) }
 
-                            Spacer(modifier = Modifier.size(4.dp))
+                                    SubcomposeAsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data("https://image.tmdb.org/t/p/w185${credit.profilePath}")
+                                            .setParameter(
+                                                "retry_hash",
+                                                retryHash,
+                                                memoryCacheKey = null
+                                            )
+                                            .crossfade(true)
+                                            .build(),
+                                        loading = {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator()
+                                            }
+                                        },
+                                        error = {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                IconButton(onClick = { retryHash++ }) {
+                                                    Icon(
+                                                        Icons.Filled.Refresh,
+                                                        null,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .width(140.dp)
+                                            .aspectRatio(2 / 3F),
+                                        contentScale = ContentScale.FillWidth,
+                                    )
+                                } ?: Image(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .width(140.dp)
+                                        .aspectRatio(2 / 3F),
+                                    contentScale = ContentScale.FillWidth,
+                                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                                )
 
-                            Text(
-                                text = credit.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 8.dp),
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = 1,
-                            )
+                                Spacer(modifier = Modifier.size(4.dp))
 
-                            Text(
-                                text = credit.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = 1,
-                            )
+                                Text(
+                                    text = credit.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 1,
+                                )
+
+                                Text(
+                                    text = credit.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -13,7 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
@@ -33,6 +36,8 @@ internal enum class MediaRowContentTypes {
 // TODO: Change to Media category and put in components with the row of medias, get a variable to tell which media to load or something
 // TODO: Reusable with the view model, less code
 // TODO: Handle not remembering state in the column, the row is fine
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun HomeScreen(
     //modifier: Modifier = Modifier,
@@ -41,92 +46,104 @@ internal fun HomeScreen(
 ) {
     val categories = homeViewModel.categoriesFlows
 
-    CategoriesColumn(
-        homeCategories = categories,
-        watchlistCallback = homeViewModel::watchlistClick,
-        onMediaClick = onMediaClick
-    )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-internal fun CategoriesColumn(
-    homeCategories: List<HomeCategory>,
-    watchlistCallback: (mediaId: Int, mediaType: String) -> Unit,
-    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
-) {
-    val listState = rememberSaveable(saver = LazyListState.Saver) {
+    val categoriesListState = rememberSaveable(saver = LazyListState.Saver) {
         LazyListState()
     }
 
-    val pagingItems = homeCategories.map { homeCategory ->
-        homeCategory.flow.collectAsLazyPagingItems()
+    val categoriesPagingItems = categories.associate { homeCategory ->
+        Pair(homeCategory.nameRes, homeCategory.flow.collectAsLazyPagingItems())
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 8.dp),
-        state = listState
-    ) {
-        homeCategories.forEachIndexed { index, category ->
-            stickyHeader(
-                key = -category.nameRes,
-                contentType = MediaRowContentTypes.HEADER,
+    val refreshState by remember {
+        derivedStateOf {
+            categoriesPagingItems.map { (_, pagingItems) ->
+                pagingItems.loadState.refresh
+            }
+        }
+    }
+
+    when {
+        refreshState.contains(LoadState.Loading) -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Card(
-                    modifier = Modifier.padding(all = 8.dp)
+                CircularProgressIndicator()
+            }
+        }
+        refreshState.any { categoryRefreshState ->
+            categoryRefreshState is LoadState.Error
+        } -> {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = "Errors:\n${categoriesPagingItems.filter { (_, pagingItems) ->
+                        pagingItems.loadState.refresh is LoadState.Error
+                    }.map { (_, pagingItems) ->
+                        (pagingItems.loadState.refresh as LoadState.Error).error.message ?: ""
+                    }.toSet().joinToString(".\n") { it }}.\nRetry?",
+                )
+                Spacer(
+                    modifier = Modifier.size(16.dp)
+                )
+                IconButton(
+                    onClick = {
+                        categoriesPagingItems.filter { (_, pagingItems) ->
+                            pagingItems.loadState.refresh is LoadState.Error
+                        }.forEach { (_, pagingItems) ->
+                            pagingItems.refresh()
+                        }
+                    },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape),
+                    colors = IconButtonDefaults.filledIconButtonColors(),
                 ) {
-                    Text(
-                        text = stringResource(id = category.nameRes),
-                        modifier = Modifier.padding(all = 16.dp),
-                        style = MaterialTheme.typography.headlineLarge,
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(id = R.string.load_retry_desc)
                     )
                 }
             }
-
-            item(
-                key = category.nameRes, //category.id,
-                contentType = MediaRowContentTypes.CATEGORY_ROW,
+        }
+        else -> {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                state = categoriesListState,
+                contentPadding = PaddingValues(
+                    bottom = 8.dp
+                )
             ) {
-
-                val moviesPaging = pagingItems[index]
-
-                when (moviesPaging.loadState.refresh) {
-                    is LoadState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                    is LoadState.Error -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                for (category in categories) {
+                    stickyHeader(
+                        key = -category.nameRes,
+                        contentType = MediaRowContentTypes.HEADER,
+                    ) {
+                        Card(
+                            modifier = Modifier.padding(all = 8.dp)
                         ) {
                             Text(
-                                text = "Error loading, retry?"
+                                text = stringResource(id = category.nameRes),
+                                modifier = Modifier
+                                    .padding(
+                                        all = 16.dp,
+                                    ),
+                                style = MaterialTheme.typography.headlineLarge,
                             )
-                            Spacer(
-                                modifier = Modifier.width(8.dp)
-                            )
-                            IconButton(
-                                onClick = moviesPaging::refresh,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Retry loading"
-                                )
-                            }
                         }
                     }
-                    else -> {
+
+                    item(
+                        key = category.nameRes,
+                        contentType = MediaRowContentTypes.CATEGORY_ROW,
+                    ) {
                         MediaRow(
-                            medias = moviesPaging,//categoriesPagingItems[category.id] ?: throw Exception("Missing category!"),
-                            watchlistCallback = watchlistCallback,
+                            medias = categoriesPagingItems[category.nameRes] ?: throw Exception("Missing category!"),
+                            watchlistCallback = homeViewModel::watchlistClick,
                             onMediaClick = onMediaClick
                         )
                     }
@@ -165,7 +182,7 @@ internal fun MediaRow(
         ) {
             mediaRowHeader(
                 append = false,
-                state = medias.loadState.source.prepend,
+                state = medias.loadState.prepend,
                 retryCallback = medias::retry
             )
 
@@ -186,7 +203,7 @@ internal fun MediaRow(
 
             mediaRowHeader(
                 append = true,
-                state = medias.loadState.source.append,
+                state = medias.loadState.append,
                 retryCallback = {
                     medias.retry()
                     coroutineScope.launch {
@@ -249,7 +266,10 @@ internal fun LazyListScope.mediaRowHeader(
                 key = if (append) FOOTER_ERROR_KEY else HEADER_ERROR_KEY,
                 contentType = MediaRowContentTypes.ERROR,
             ) {
-                LoadError(retryCallback = retryCallback)
+                LoadError(
+                    state.error.message,
+                    retryCallback = retryCallback,
+                )
             }
         }
         else -> {}
@@ -268,19 +288,31 @@ internal fun LoadingBox(
 
 @Composable
 internal fun LoadError(
+    message: String?,
     retryCallback: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .width(220.dp)
+            .fillMaxHeight()
+            .padding(end = 80.dp),
     ) {
         Text(
-            text = stringResource(id = R.string.error_loading_text)
+            text = message?.let { "Error: $it. Retry?" } ?: stringResource(id = R.string.error_loading_text),
+            textAlign = TextAlign.Center,
         )
 
-        IconButton(onClick = { retryCallback() }) {
+        Spacer(Modifier.size(8.dp))
+
+        IconButton(
+            onClick = { retryCallback() },
+            modifier = Modifier
+                .padding(start = 40.dp)
+                .size(56.dp)
+                .clip(CircleShape),
+            colors = IconButtonDefaults.filledIconButtonColors(),
+        ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = stringResource(id = R.string.load_retry_desc)

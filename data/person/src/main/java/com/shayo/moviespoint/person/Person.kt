@@ -8,6 +8,7 @@ data class Person(
     val name: String,
     val profilePath: String?,
     val combinedCredits: CombinedCredits,
+    val knownForDepartment: String?,
 )
 
 data class CombinedCredits(

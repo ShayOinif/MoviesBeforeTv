@@ -25,7 +25,8 @@ internal class NetworkPersonDataSourceImpl @Inject constructor(
                     combinedCredits = CombinedCredits(
                         cast = combinedCredits.cast.map(NetworkMovie<Int>::mapToMovieWithoutGenres),
                         crew = combinedCredits.crew.map(NetworkMovie<Int>::mapToMovieWithoutGenres),
-                    )
+                    ),
+                    knownForDepartment = knownForDepartment,
                 )
             }
         }

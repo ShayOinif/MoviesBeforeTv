@@ -55,6 +55,8 @@ dependencies {
     implementation project(':feature:watchlist')
     implementation project(':feature:mediaDetail')
     implementation project(':feature:search')
+    implementation project(':feature:person')
+    implementation project(':common:work')
 
     implementation platform(libs.androidx.compose.bom)
 
@@ -71,6 +73,10 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.test)
     androidTestImplementation(libs.espresso.core)
+
+    implementation(libs.work.runtime)
+    implementation(libs.hilt.work)
+    kapt(libs.android.hilt.compiler)
 
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-tooling-preview'

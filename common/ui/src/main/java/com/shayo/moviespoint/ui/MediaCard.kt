@@ -5,13 +5,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.LocalMovies
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,10 +36,15 @@ fun MediaCard(
     ) {
 
         item.posterPath?.let {
+
+            var retryHash by remember { mutableStateOf(0) }
+
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).tag("Coil request for image") // TODO
+                model = ImageRequest.Builder(LocalContext.current)
+                    .tag("Coil request for image") // TODO
                     .data("https://image.tmdb.org/t/p/w154${item.posterPath}") // TODO: Get base url from somewhere else
                     .crossfade(true)
+                    .setParameter("retry_hash", retryHash, memoryCacheKey = null)
                     .build(),
                 loading = {
                     Box(
@@ -49,11 +55,17 @@ fun MediaCard(
                     }
                 },
                 error = {
-                    Icon(
-                        Icons.Default.BrokenImage,
-                        null,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        IconButton(onClick = { retryHash++ }) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                null,
+                            )
+                        }
+                    }
                 },
                 contentDescription = null,
                 modifier = Modifier
@@ -62,12 +74,13 @@ fun MediaCard(
             )
         } ?: run {
             Image(
-                imageVector = Icons.Outlined.CloudOff,
+                imageVector = Icons.Outlined.LocalMovies,
                 contentDescription = null,
                 modifier = Modifier
                     .width(154.dp) // TODO: Maybe move to a const
                     .aspectRatio(2 / 3F) // TODO: Maybe move to a const
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
             )
         }
 
@@ -109,7 +122,10 @@ fun MediaCard(
 
         // TODO: Maybe create another clickable surface
         if (!isLandscape) {
-            LongWatchlistButton(inWatchlist = item.inWatchlist, watchlistCallback = watchlistCallback)
+            LongWatchlistButton(
+                inWatchlist = item.inWatchlist,
+                watchlistCallback = watchlistCallback
+            )
         }
     }
 }

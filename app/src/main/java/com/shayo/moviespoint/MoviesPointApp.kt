@@ -21,6 +21,8 @@ import com.shayo.moviespoint.home.HomeGraphRoutePattern
 import com.shayo.moviespoint.home.homeGraph
 import com.shayo.moviespoint.mediadetail.mediaDetailGraph
 import com.shayo.moviespoint.mediadetail.navigateToMediaDetail
+import com.shayo.moviespoint.personfeature.navigateToPerson
+import com.shayo.moviespoint.personfeature.personGraph
 import com.shayo.moviespoint.search.SearchGraphRoutePattern
 import com.shayo.moviespoint.search.searchGraph
 import com.shayo.moviespoint.ui.theme.MoviesPointTheme
@@ -124,9 +126,18 @@ private fun NavGraphBuilder.moviesPointGraph(
         appState.navController.navigateToMediaDetail(mediaId, mediaType)
     }
 
-    searchGraph()
+    searchGraph(
+        appState.navController::navigateToMediaDetail,
+        appState.navController::navigateToPerson
+    )
 
-    accountGraph()
+    accountGraph(appState::postSnackBarMessage)
 
-    mediaDetailGraph()
+    mediaDetailGraph { personId ->
+        appState.navController.navigateToPerson(personId)
+    }
+
+    personGraph { mediaId, mediaType ->
+        appState.navController.navigateToMediaDetail(mediaId, mediaType)
+    }
 }
