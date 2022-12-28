@@ -10,7 +10,7 @@ data class Category(
 )
 
 enum class CategoryName(
-    internal val type: String,
+    val type: String,
     val category: String,
 ) {
     POPULAR_MOVIES("movie", "popular"),

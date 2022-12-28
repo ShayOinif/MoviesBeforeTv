@@ -14,15 +14,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
@@ -35,8 +41,11 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.shayo.movies.PagedItem
 import com.shayo.moviespoint.ui.LongWatchlistButton
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLifecycleComposeApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLifecycleComposeApi::class,
+    ExperimentalComposeUiApi::class
+)
 @Composable
 internal fun SearchScreen(
     //modifier: Modifier = Modifier,
@@ -44,15 +53,56 @@ internal fun SearchScreen(
     onPersonClicked: (personId: Int) -> Unit,
     searchViewModel: SearchViewModel = hiltViewModel(),
 ) {
+
     val appBarState = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val scaffoldModifier = Modifier.nestedScroll(appBarState.nestedScrollConnection)
+
+    val scaffoldModifier = remember { Modifier.nestedScroll(appBarState.nestedScrollConnection) }
 
     val query by searchViewModel.query.collectAsStateWithLifecycle()
+
+    val focusRequester = remember { FocusRequester() }
+
+    val searchListState = rememberSaveable(saver = LazyListState.Saver) {
+        LazyListState()
+    }
+
+    val scope = rememberCoroutineScope()
+
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     BackHandler(
         enabled = query.isNotEmpty()
     ) {
-        searchViewModel.onQueryTextChange("")
+        if (searchListState.firstVisibleItemIndex != 0) {
+            scope.launch {
+                searchListState.animateScrollToItem(0)
+                appBarState.nestedScrollConnection.onPreScroll(
+                    Offset.Infinite,
+                    NestedScrollSource.Fling
+                )
+                appBarState.nestedScrollConnection.onPostScroll(
+                    Offset.Infinite,
+                    Offset.Zero,
+                    NestedScrollSource.Fling
+                )
+                appBarState.nestedScrollConnection.onPostFling(
+                    Velocity(0F, Offset.Infinite.y),
+                    Velocity.Zero
+                )
+            }
+
+            focusRequester.requestFocus()
+
+            keyboardController?.show()
+        } else {
+            // TODO: Think if we want to show the keyboard twice
+
+            searchViewModel.onQueryTextChange("")
+
+            focusRequester.requestFocus()
+
+            keyboardController?.show()
+        }
     }
 
     Scaffold(
@@ -61,8 +111,6 @@ internal fun SearchScreen(
             TopAppBar(
                 title = {},
                 actions = {
-                    val focusRequester = remember { FocusRequester() }
-
                     OutlinedTextField(
                         value = query,
                         onValueChange = searchViewModel::onQueryTextChange,
@@ -125,6 +173,7 @@ internal fun SearchScreen(
                 onMediaClicked = onMediaClicked,
                 onPersonClicked = onPersonClicked,
                 onWatchlistClick = searchViewModel::watchlistClick,
+                searchListState = searchListState,
                 modifier = Modifier.padding(paddingValues),
             )
         }
@@ -139,6 +188,7 @@ internal fun SearchResults(
     onMediaClicked: (mediaId: Int, mediaType: String) -> Unit,
     onPersonClicked: (personId: Int) -> Unit,
     onWatchlistClick: (id: Int, type: String) -> Unit,
+    searchListState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -188,10 +238,6 @@ internal fun SearchResults(
             }
         }
         else -> {
-            val searchListState = rememberSaveable(saver = LazyListState.Saver) {
-                LazyListState()
-            }
-
             LazyColumn(
                 modifier = modifier
                     .padding(horizontal = 32.dp)
@@ -229,27 +275,38 @@ internal fun SearchResults(
                             },
                             headlineText = {
                                 Text(
-                                    when (item) {
+                                    text = when (item) {
                                         is PagedItem.PagedCredit -> item.credit.name
                                         is PagedItem.PagedMovie -> item.movie.title
-                                    }
+                                    },
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 1,
                                 )
                             },
                             overlineText = {
                                 Text(
                                     when (item) {
-                                        is PagedItem.PagedCredit -> item.credit.description
-                                        is PagedItem.PagedMovie -> "Release date: ${item.movie.releaseDate ?: "Not available"}"
+                                        is PagedItem.PagedCredit -> stringResource(id = R.string.person)
+                                        is PagedItem.PagedMovie -> stringResource(
+                                            id = if (item.movie.type == "movie")
+                                                R.string.movie
+                                            else
+                                                R.string.show
+                                        )
                                     }
                                 )
                             },
                             supportingText = {
-
                                 Text(
                                     when (item) {
                                         is PagedItem.PagedCredit -> item.credit.knownFor.take(4)
                                             .joinToString(", ") { it.title }
-                                        is PagedItem.PagedMovie -> "Rating: ${"%.1f".format(item.movie.voteAverage)}/10"
+                                        is PagedItem.PagedMovie -> "Rating: ${"%.1f".format(item.movie.voteAverage)}/10\n${
+                                            stringResource(
+                                                id = R.string.release_date,
+                                                item.movie.releaseDate ?: stringResource(id = R.string.not_available),
+                                            )
+                                        }"
                                     }
                                 )
 
@@ -309,7 +366,10 @@ internal fun SearchResults(
                                 } ?: Image(
                                     imageVector = when (item) {
                                         is PagedItem.PagedCredit -> Icons.Default.Person
-                                        is PagedItem.PagedMovie -> Icons.Default.LocalMovies
+                                        is PagedItem.PagedMovie -> if (item.movie.type == "movie")
+                                            Icons.Default.LocalMovies
+                                        else
+                                            Icons.Default.Tv
                                     },
                                     contentDescription = null,
                                     modifier = Modifier

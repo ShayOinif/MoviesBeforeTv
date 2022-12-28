@@ -41,6 +41,7 @@ dependencies {
 
     implementation project(':data:movies')
     implementation project(':data:programs')
+    implementation project(':domain:getCategoriesFlows')
 
     implementation 'androidx.tvprovider:tvprovider:1.0.0'
 }

@@ -6,10 +6,7 @@ import com.shayo.moviepoint.db.*
 import com.shayo.network.MovieNetworkResponse
 import com.shayo.network.NetworkMovieDataSource
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 
@@ -35,6 +32,11 @@ interface MoviesRepository {
     suspend fun discover(
         type: String,
     ): Result<List<Movie>>
+
+    suspend fun updateCategory(
+        type: String,
+        category: String,
+    ): Boolean
 }
 
 internal class MoviesRepositoryImpl constructor(
@@ -52,6 +54,30 @@ internal class MoviesRepositoryImpl constructor(
         page: Int
     ): Result<MovieNetworkResponse<Int>> {
         return withContext(Dispatchers.IO) { networkMovieDataSource.searchMovies(query, page) }
+    }
+
+
+    @OptIn(ExperimentalPagingApi::class)
+    override suspend fun updateCategory(
+        type: String,
+        category: String,
+    ): Boolean {
+        return CategoryMediator(
+            type,
+            category,
+            networkMovieDataSource::getMovies,
+            localMoviesDataSource,
+            localMovieCategoryDataSource,
+        ).run {
+            if (initialize() == RemoteMediator.InitializeAction.LAUNCH_INITIAL_REFRESH) {
+                load(
+                    LoadType.REFRESH,
+                    PagingState(emptyList(), null, PagingConfig(pageSize = 20), 0)
+                ) is RemoteMediator.MediatorResult.Success
+            } else {
+                true
+            }
+        }
     }
 
     @OptIn(ExperimentalPagingApi::class)

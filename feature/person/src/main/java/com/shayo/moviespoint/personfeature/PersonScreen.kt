@@ -12,7 +12,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalMovies
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.LocalMovies
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
@@ -24,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -183,11 +186,22 @@ internal fun PersonScreen(
                         )
                     }
 
-                    Text(
-                        text = person.name,
-                        style = MaterialTheme.typography.headlineMedium,
+                    Column(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                    )
+                        verticalArrangement = spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = person.name,
+                            style = MaterialTheme.typography.headlineMedium,
+                        )
+
+                        person.knownForDepartment?.let { knownForDepartment ->
+                            Text(
+                                text = stringResource(id = R.string.known_for, knownForDepartment),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                    }
                 }
 
                 Text(
@@ -197,14 +211,14 @@ internal fun PersonScreen(
                 )
 
 
-
                 var expanded by rememberSaveable { mutableStateOf(false) }
 
                 AnimatedContent(targetState = expanded) { currentExpanded ->
                     Text(
                         text = person.biography,
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
                             .clickable {
                                 expanded = !expanded
                             },
@@ -339,14 +353,14 @@ internal fun MediaCreditCard(
                     .aspectRatio(2 / 3F) // TODO: Maybe move to a const
             )
         } ?: Image(
-                imageVector = Icons.Outlined.LocalMovies,
-                contentDescription = null,
-                modifier = Modifier
-                    .width(154.dp) // TODO: Maybe move to a const
-                    .aspectRatio(2 / 3F) // TODO: Maybe move to a const
-                    .padding(horizontal = 16.dp),
+            imageVector = Icons.Outlined.LocalMovies,
+            contentDescription = null,
+            modifier = Modifier
+                .width(154.dp) // TODO: Maybe move to a const
+                .aspectRatio(2 / 3F) // TODO: Maybe move to a const
+                .padding(horizontal = 16.dp),
             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
-            )
+        )
 
         Text(
             text = mediaPerson.media.title,
@@ -366,13 +380,29 @@ internal fun MediaCreditCard(
             )
         }
 
-        mediaPerson.media.releaseDate?.let { releaseDate ->
-            Text(
-                text = releaseDate.take(4),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 8.dp),
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            mediaPerson.media.releaseDate?.let { releaseDate ->
+                Text(
+                    text = releaseDate.take(4),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Icon(
+                imageVector = if (mediaPerson.media.type == "movie")
+                    Icons.Default.LocalMovies
+                else
+                    Icons.Default.Tv,
+                contentDescription = if (mediaPerson.media.type == "movie")
+                    "Movie"
+                else
+                    "TV Show",
             )
         }
 

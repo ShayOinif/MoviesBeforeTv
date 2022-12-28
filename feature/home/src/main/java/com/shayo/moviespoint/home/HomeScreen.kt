@@ -1,5 +1,6 @@
 package com.shayo.moviespoint.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -71,6 +72,7 @@ internal fun HomeScreen(
                         "%.1f".format(voteAverage),
                         releaseDate,
                         inWatchlist = isFavorite,
+                        type = type
                     )
                 )
             }
@@ -83,6 +85,23 @@ internal fun HomeScreen(
         val categoriesListState = rememberSaveable(saver = LazyListState.Saver) {
             LazyListState()
         }
+
+        val scope = rememberCoroutineScope()
+
+        val isTop by remember {
+            derivedStateOf { categoriesListState.firstVisibleItemIndex == 0 }
+        }
+
+        BackHandler(
+            enabled = !isTop
+        ) {
+            scope.launch {
+                scope.launch {
+                    categoriesListState.animateScrollToItem(0)
+                }
+            }
+        }
+
 
         val categoriesPagingItems = currentCategories.associate { homeCategory ->
             Pair(homeCategory.nameRes, homeCategory.flow.collectAsLazyPagingItems())
@@ -179,7 +198,7 @@ internal fun HomeScreen(
                         ) {
                             MediaRow(
                                 medias = categoriesPagingItems[category.nameRes] as? LazyPagingItems<HomeItem>
-                                    ?: throw Exception("Missing category!"), // TODO: Handle nullness and uncheked cast
+                                    ?: throw Exception("Missing category!"), // TODO: Handle nullness and unchecked cast
                                 watchlistCallback = homeViewModel::watchlistClick,
                                 onMediaClick = onMediaClick
                             )
@@ -236,11 +255,11 @@ internal fun MediaRow(
                 },
             ) { homeItem ->
                 homeItem?.let {
-                        MediaCard(
-                            item = homeItem.mediaCardItem,
-                            watchlistCallback = { watchlistCallback(homeItem.id, homeItem.type) },
-                            onClickCallback = { onMediaClick(homeItem.id, homeItem.type) }
-                        )
+                    MediaCard(
+                        item = homeItem.mediaCardItem,
+                        watchlistCallback = { watchlistCallback(homeItem.id, homeItem.type) },
+                        onClickCallback = { onMediaClick(homeItem.id, homeItem.type) }
+                    )
                 }
             }
 

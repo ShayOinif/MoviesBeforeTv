@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.*
 import com.shayo.moviespoint.work.ClearOldCacheWorker
 import com.shayo.moviespoint.work.UpdateCacheWorker
+import com.shayo.moviespoint.work.UpdateCategoriesWorker
 import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -22,8 +23,7 @@ class MoviesPointHiltApp : Application(), Configuration.Provider {
         super.onCreate()
 
         val deleteRequest =
-            PeriodicWorkRequestBuilder<ClearOldCacheWorker>(1, TimeUnit.DAYS)
-                .build()
+            PeriodicWorkRequestBuilder<ClearOldCacheWorker>(1, TimeUnit.DAYS).build()
 
         val manager = WorkManager.getInstance(this)
 
@@ -36,8 +36,7 @@ class MoviesPointHiltApp : Application(), Configuration.Provider {
         val updateRequest = PeriodicWorkRequestBuilder<UpdateCacheWorker>(1, TimeUnit.DAYS)
             .setConstraints(
                 Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
+                    .setRequiredNetworkType(NetworkType.CONNECTED).build()
             )
             .build()
 
@@ -45,6 +44,20 @@ class MoviesPointHiltApp : Application(), Configuration.Provider {
             "update_cache",
             ExistingPeriodicWorkPolicy.KEEP,
             updateRequest
+        )
+
+        val categoriesRequest =
+            PeriodicWorkRequestBuilder<UpdateCategoriesWorker>(6, TimeUnit.HOURS)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED).build()
+                )
+                .build()
+
+        manager.enqueueUniquePeriodicWork(
+            "update_categories",
+            ExistingPeriodicWorkPolicy.KEEP,
+            categoriesRequest
         )
     }
 }

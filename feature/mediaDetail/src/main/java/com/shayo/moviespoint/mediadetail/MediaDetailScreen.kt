@@ -12,10 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -197,24 +195,41 @@ internal fun MediaDetailScreen(
                         },
                         contentDescription = null,
                         modifier = Modifier
-                            .width(80.dp) // TODO: Maybe move to a const
+                            .width(140.dp) // TODO: Maybe move to a const
                             .aspectRatio(2 / 3F) // TODO: Maybe move to a const
                             .padding(8.dp)
                     )
                 } ?: Image(
-                    imageVector = Icons.Outlined.CloudOff,
+                    imageVector = if (currentMedia.type == "movie")
+                        Icons.Default.LocalMovies
+                    else
+                        Icons.Default.Tv,
                     contentDescription = null,
                     modifier = Modifier
-                        .width(80.dp) // TODO: Maybe move to a const
+                        .width(140.dp) // TODO: Maybe move to a const
                         .aspectRatio(2 / 3F) // TODO: Maybe move to a const
                         .padding(8.dp)
                 )
 
-                Text(
-                    text = currentMedia.title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(8.dp),
-                )
+                Column(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    verticalArrangement = spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = currentMedia.title,
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+
+                    Text(
+                        text = stringResource(
+                            id = if (currentMedia.type == "movie")
+                                R.string.movie
+                        else
+                            R.string.show,
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
             }
 
 

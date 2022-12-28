@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="load_retry_desc">Retry Loading</string>
+
+    <!-- SearchScreen.kt -->
+    <string name="release_date">Release date: %1$s</string>
+    <string name="not_available">Not available</string>
+    <string name="movie">Movie</string>
+    <string name="show">TV Show</string>
+    <string name="person">Person</string>
 </resources>

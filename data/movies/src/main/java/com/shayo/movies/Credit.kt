@@ -5,5 +5,5 @@ data class Credit(
     val name: String,
     val profilePath: String?,
     val description: String = "",
-    val knownFor: List<Movie> = emptyList()
+    val knownFor: List<Movie> = emptyList(),
 )

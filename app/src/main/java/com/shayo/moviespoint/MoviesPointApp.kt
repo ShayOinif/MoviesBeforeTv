@@ -1,9 +1,6 @@
 package com.shayo.moviespoint
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
@@ -168,7 +165,16 @@ fun MoviesPointApp(
                     PermanentNavigationDrawer(
                         //modifier = Modifier.padding(innerPaddingModifier).fillMaxSize(),
                         drawerContent = {
-                            PermanentDrawerSheet(Modifier.width(240.dp)) {
+                            PermanentDrawerSheet(
+                                modifier = Modifier.width(180.dp),
+                                drawerTonalElevation = 6.dp,
+                            ) {
+                                Icon(
+                                    painterResource(id = R.drawable.ic_launcher_foreground),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+
                                 NavigationDrawerItem(
                                     selected = appState.tab == Tab.HOME,
                                     onClick = {

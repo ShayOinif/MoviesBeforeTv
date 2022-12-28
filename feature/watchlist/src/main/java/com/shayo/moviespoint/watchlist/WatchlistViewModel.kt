@@ -26,7 +26,7 @@ internal class WatchlistViewModel @Inject constructor(
                             id,
                             type,
                             MediaCardItem(
-                                posterPath, title, voteAverage.toString(), releaseDate, true,
+                                posterPath, title, "%.1f".format(voteAverage), releaseDate, type,true,
                             ),
                         )
                     }

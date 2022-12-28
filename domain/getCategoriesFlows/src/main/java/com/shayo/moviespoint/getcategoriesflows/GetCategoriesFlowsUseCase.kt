@@ -22,13 +22,11 @@ internal class GetCategoriesFlowsUseCaseImpl(
             )
         }
     }
-
-    companion object {
-        private val categories = listOf(
-            CategoryName.POPULAR_MOVIES,
-            CategoryName.UPCOMING_MOVIES,
-            CategoryName.POPULAR_SHOWS,
-            CategoryName.TOP_SHOWS,
-        )
-    }
 }
+
+val categories = listOf(
+    CategoryName.POPULAR_MOVIES,
+    CategoryName.UPCOMING_MOVIES,
+    CategoryName.POPULAR_SHOWS,
+    CategoryName.TOP_SHOWS,
+)

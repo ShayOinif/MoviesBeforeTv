@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="retry_load_desc">Retry Loading</string>
+
+    <!-- PersonScreen.kt -->
+    <string name="known_for">Known For: %1$s</string>
 </resources>

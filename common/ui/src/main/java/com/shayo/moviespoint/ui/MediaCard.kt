@@ -5,9 +5,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalMovies
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.LocalMovies
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,7 +75,10 @@ fun MediaCard(
             )
         } ?: run {
             Image(
-                imageVector = Icons.Outlined.LocalMovies,
+                imageVector = if (item.type == "movie")
+                    Icons.Default.LocalMovies
+                else
+                    Icons.Default.Tv,
                 contentDescription = null,
                 modifier = Modifier
                     .width(154.dp) // TODO: Maybe move to a const
@@ -103,14 +107,30 @@ fun MediaCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(text = item.voteAverage, style = MaterialTheme.typography.labelLarge)
+                }
+
                 Icon(
-                    Icons.Filled.Star,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    imageVector = if (item.type == "movie")
+                        Icons.Default.LocalMovies
+                    else
+                        Icons.Default.Tv,
+                    contentDescription = if (item.type == "movie")
+                        "Movie"
+                    else
+                        "TV Show",
                 )
-                Text(text = item.voteAverage, style = MaterialTheme.typography.labelLarge)
             }
 
             if (isLandscape) {

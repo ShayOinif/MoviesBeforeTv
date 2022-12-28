@@ -6,6 +6,7 @@ import androidx.work.*
 import com.shayo.moviespoint.work.ChannelsWorker
 import com.shayo.moviespoint.work.ClearOldCacheWorker
 import com.shayo.moviespoint.work.UpdateCacheWorker
+import com.shayo.moviespoint.work.UpdateCategoriesWorker
 import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -62,6 +63,20 @@ class MoviesApp : Application(), Configuration.Provider {
             "updateChannels",
             ExistingPeriodicWorkPolicy.KEEP,
             channelsRequest
+        )
+
+        val categoriesRequest =
+            PeriodicWorkRequestBuilder<UpdateCategoriesWorker>(6, TimeUnit.HOURS)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED).build()
+                )
+                .build()
+
+        manager.enqueueUniquePeriodicWork(
+            "update_categories",
+            ExistingPeriodicWorkPolicy.KEEP,
+            categoriesRequest
         )
     }
 }

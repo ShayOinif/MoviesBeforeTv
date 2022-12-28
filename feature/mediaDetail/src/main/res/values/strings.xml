@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MediaDetailScreen.kt -->
+    <!-- SearchScreen.kt -->
+    <string name="movie">Movie</string>
+    <string name="show">TV Show</string>
+</resources>
