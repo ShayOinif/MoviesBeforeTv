@@ -13,6 +13,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.shayo.movies.GenreRepository
 import com.shayo.movies.MovieManager
+import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviespoint.person.Person
 import com.shayo.moviespoint.person.PersonRepository
@@ -56,10 +57,13 @@ class PersonFragment : DetailsSupportFragment() {
 
         mAdapter.add(detailsRow)
 
-        CardPresenter(resources.displayMetrics.widthPixels).let { cardPresenter ->
+        CardPresenter(
+            width = resources.displayMetrics.widthPixels,
+            person = true,
+        ).let { cardPresenter ->
             mAdapter.add(
                 ListRow(
-                    HeaderItem("All Movies:"),
+                    HeaderItem(getString(R.string.filmography)),
                     ArrayObjectAdapter(cardPresenter).also { moviesRowAdapter = it }
                 )
             )
@@ -113,6 +117,9 @@ class PersonFragment : DetailsSupportFragment() {
                 }
 
                 repeatOnLifecycle(Lifecycle.State.RESUMED) {
+
+                    val diff = RegularArrayAdapterDiff()
+
                     combine(
                         movieManager.favoritesMap,
                         genreRepository.movieGenresFlow
@@ -120,28 +127,39 @@ class PersonFragment : DetailsSupportFragment() {
                         Pair(favoritesMap, genreMap)
                     }.collectLatest { (favoritesMap, genreMap) ->
                         withContext(Dispatchers.Default) {
-                            moviesRowAdapter.clear()
-
-                            moviesRowAdapter.addAll(
-                                0,
-                                it.combinedCredits.cast.sortedByDescending { movie ->
-                                    movie.releaseDate
-                                }.mapIndexed { index, movie ->
-                                    // TODO: Make a common function for mapping favs and genres
-                                    BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
-                                        movie = movie.copy(
-                                            genres = movie.genres.map { genre ->
-                                                genreMap[genre.id] ?: genre
-                                            },
-                                            isFavorite = favoritesMap.containsKey(movie.id)
-                                        ),
-                                        position = index,
-                                    )
-                                })
-
-                            moviesRowAdapter.notifyArrayItemRangeChanged(
-                                0,
-                                it.combinedCredits.cast.size
+                            moviesRowAdapter.setItems(
+                                if (it.knownForDepartment == "Acting") {
+                                    it.combinedCredits.cast.sortedByDescending { movie ->
+                                        movie.releaseDate
+                                    }.mapIndexed { index, movie ->
+                                        // TODO: Make a common function for mapping favs and genres
+                                        BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
+                                            movie = movie.copy(
+                                                genres = movie.genres.map { genre ->
+                                                    genreMap[genre.id] ?: genre
+                                                },
+                                                isFavorite = favoritesMap.containsKey(movie.id)
+                                            ),
+                                            position = index,
+                                        )
+                                    }
+                                } else {
+                                    it.combinedCredits.crew.sortedByDescending { movie ->
+                                        movie.releaseDate
+                                    }.mapIndexed { index, movie ->
+                                        // TODO: Make a common function for mapping favs and genres
+                                        BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie(
+                                            movie = movie.copy(
+                                                genres = movie.genres.map { genre ->
+                                                    genreMap[genre.id] ?: genre
+                                                },
+                                                isFavorite = favoritesMap.containsKey(movie.id)
+                                            ),
+                                            position = index,
+                                        )
+                                    }
+                                },
+                                diff
                             )
                         }
                     }
@@ -158,6 +176,7 @@ class PersonDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
         item: Any?
     ) {
         if (item is Person) {
+            viewHolder.subtitle.text = viewHolder.view.context.getString(R.string.known_for, item.knownForDepartment)
             viewHolder.title.text = item.name
 
             viewHolder.body.text = item.biography

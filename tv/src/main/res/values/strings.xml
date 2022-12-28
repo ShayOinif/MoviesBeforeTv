@@ -5,4 +5,16 @@
         <item quantity="one">Watch Trailer</item>
         <item quantity="other">Watch Trailers</item>
     </plurals>
+
+    <!-- PersonFragment.kt -->
+    <string name="filmography">Filmography:</string>
+    <string name="known_for">Known For: %1$s</string>
+
+    <!-- CardPresenter -->
+    <string name="no_desc">No Description</string>
+
+    <!-- DetailFragment.kt -->
+    <string name="title">%1$s - %2$s</string>
+    <string name="movie">Movie</string>
+    <string name="show">TV Show</string>
 </resources>

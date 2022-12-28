@@ -13,6 +13,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.map
 import com.shayo.movies.*
+import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import com.shayo.moviespoint.person.PersonRepository
@@ -204,7 +205,8 @@ class DetailFragment : DetailsSupportFragment() {
                                         runtime,
                                         overview,
                                         topCastAndDirector,
-                                        releaseDate
+                                        releaseDate,
+                                        type
                                     )
                                 }
 
@@ -233,6 +235,9 @@ class DetailFragment : DetailsSupportFragment() {
                 launch {
                     when (navArgs.origin) {
                         DetailsOrigin.CATEGORY -> {
+
+                            val diff = RegularArrayAdapterDiff()
+
                             moviesManager.getCategoryFlow(
                                 type = movieType,
                                 category = navArgs.queryOrCategory,
@@ -300,6 +305,7 @@ data class DetailedMovie(
     val overview: String,
     val topCastAndDirector: TopCastAndDirector?,
     val releaseDate: String?,
+    val type: String,
 )
 
 class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
@@ -309,12 +315,24 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
         item: Any?
     ) {
         if (item is DetailedMovie) {
-            viewHolder.title.text = item.title
+            viewHolder.title.text =
+                with(viewHolder.view.context) {
+                    getString(
+                        R.string.title,
+                        item.title,
+                        getString(
+                            if (item.type == "movie")
+                                R.string.movie
+                            else
+                                R.string.show
+                        )
+                    )
+                }
 
             viewHolder.subtitle.maxLines = 6
 
             viewHolder.subtitle.text =
-                "${item.releaseDate}\n${"%.1f".format(item.voteAverage)}/10\n" +
+                "${item.releaseDate}\n${"%.1f".format(item.voteAverage)} / 10\n" +
                         "${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
                         "${
                             item.topCastAndDirector?.let {

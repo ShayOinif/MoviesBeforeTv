@@ -1,5 +1,6 @@
 package com.shayo.moviesbeforetv.tv
 
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
@@ -23,6 +24,7 @@ import com.shayo.movies.Credit
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
 import com.shayo.movies.UserRepository
+import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import com.shayo.moviespoint.viewmodels.home.HomeViewModel
@@ -134,12 +136,14 @@ class MyBrowseFragment : BrowseSupportFragment() {
                             val rowsAdapter = (adapter as ArrayObjectAdapter)
 
                             if (rowsAdapter.size() < 2) {
-                                val cardPresenter = CardPresenter(resources.displayMetrics.widthPixels)
+                                val cardPresenter =
+                                    CardPresenter(resources.displayMetrics.widthPixels)
 
                                 val browseMovieLoadSuccessDiff = BrowseMovieLoadSuccessDiff()
 
                                 categories.forEachIndexed { index, homeCategory ->
-                                    val pagingAdapter = PagingDataAdapter(cardPresenter, browseMovieLoadSuccessDiff)
+                                    val pagingAdapter =
+                                        PagingDataAdapter(cardPresenter, browseMovieLoadSuccessDiff)
 
                                     rowsAdapter.add(
                                         index,
@@ -209,51 +213,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
                 launch {
                     // TODO: Move to class
-                    val diff =
-                        object : DiffCallback<BrowseMovieLoadResult.BrowseMovieLoadSuccess>() {
-                            override fun areItemsTheSame(
-                                oldItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess,
-                                newItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess
-                            ): Boolean {
-                                return if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie &&
-                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie
-                                ) {
-                                    oldItem.movie.id == newItem.movie.id
-                                } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
-                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
-                                ) {
-                                    oldItem.credit.id == newItem.credit.id
-                                } else {
-                                    false
-                                }
-                            }
-
-                            override fun areContentsTheSame(
-                                oldItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess,
-                                newItem: BrowseMovieLoadResult.BrowseMovieLoadSuccess
-                            ): Boolean {
-                                return if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie &&
-                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie
-                                ) {
-                                    oldItem.movie.title == newItem.movie.title &&
-                                            oldItem.movie.posterPath == newItem.movie.posterPath &&
-                                            oldItem.movie.backdropPath == newItem.movie.backdropPath &&
-                                            oldItem.movie.overview == newItem.movie.overview &&
-                                            oldItem.movie.releaseDate == newItem.movie.releaseDate &&
-                                            oldItem.movie.voteAverage == newItem.movie.voteAverage &&
-                                            oldItem.movie.genres == newItem.movie.genres &&
-                                            oldItem.movie.type == newItem.movie.type &&
-                                            oldItem.movie.isFavorite == newItem.movie.isFavorite
-                                } else if (oldItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit &&
-                                    newItem is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit
-                                ) {
-                                    oldItem.credit.name == newItem.credit.name &&
-                                            oldItem.credit.profilePath == newItem.credit.profilePath
-                                } else {
-                                    false
-                                }
-                            }
-                        }
+                    val diff = RegularArrayAdapterDiff()
 
                     movieManager.getFavoritesFlow().collectLatest {
                         val data = it.mapIndexed { index, result ->
@@ -438,7 +398,7 @@ sealed interface BrowseMovieLoadResult {
 }
 
 
-class CardPresenter(width: Int) : Presenter() {
+class CardPresenter(width: Int, private val person: Boolean = false) : Presenter() {
 
     private val width: Int = width / 6
 
@@ -460,35 +420,35 @@ class CardPresenter(width: Int) : Presenter() {
 
             when (item) {
                 is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseMovie -> {
-
                     cardView.titleText = item.movie.title
 
                     cardView.contentText =
-                        "${
-                            String.format(
-                                "%.1f",
-                                item.movie.voteAverage
-                            )
-                        }/10${if (item.movie.genres.isNotEmpty()) " - ${item.movie.genres[0].name}" else ""}${
-                            item.movie.releaseDate?.run {
-                                try {
-                                    " - " + substring(
-                                        0,
-                                        4
-                                    )
-                                } catch (e: Exception) {
-                                    ""
-                                }
-                            } ?: ""
-                        }"
+                        if (person) {
+                            "${
+                                if (item.movie.desc == null || item.movie.desc?.isEmpty() == true)
+                                    viewHolder.view.context.getString(R.string.no_desc)
+                                else
+                                    item.movie.desc
+                            }${item.movie.releaseDate?.take(4)?.let { " - $it" } ?: ""}"
+                        } else {
+                            "${
+                                String.format(
+                                    "%.0f",
+                                    item.movie.voteAverage
+                                )
+                            }/10${if (item.movie.genres.isNotEmpty()) " - ${item.movie.genres[0].name}" else ""}${
+                                item.movie.releaseDate?.take(4)?.let{ " - $it" } ?: ""
+                            }"
+                        }
 
-                    if (item.movie.isFavorite)
-                        cardView.badgeImage = ContextCompat.getDrawable(
-                            viewHolder.view.context,
-                            R.drawable.ic_baseline_bookmark_24
+                    cardView.badgeImage = ContextCompat.getDrawable(
+                        viewHolder.view.context,
+                        if (item.movie.type == "movie") R.drawable.ic_baseline_local_movies_24 else R.drawable.ic_baseline_live_tv_24
+                    ).apply {
+                        this?.setTint(
+                            if (item.movie.isFavorite) Color.WHITE else Color.GRAY
                         )
-                    else
-                        cardView.badgeImage = null
+                    }
 
                     item.movie.posterPath?.let {
                         Glide.with(viewHolder.view.context)
@@ -496,10 +456,21 @@ class CardPresenter(width: Int) : Presenter() {
                             .centerCrop()
                             .error(R.drawable.ic_baseline_broken_image_24)
                             .into(cardView.mainImageView)
+                    } ?: let {
+                        cardView.mainImageView.setImageResource(
+                            if (item.movie.type == "movie") R.drawable.ic_baseline_local_movies_24 else R.drawable.ic_baseline_live_tv_24
+                        )
+
+                        cardView.mainImageView.scaleType = ImageView.ScaleType.FIT_CENTER
                     }
-                        ?: cardView.mainImageView.setImageResource(R.drawable.ic_baseline_cloud_off_24)
                 }
                 is BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit -> {
+
+                    cardView.badgeImage = ContextCompat.getDrawable(
+                        viewHolder.view.context,
+                        R.drawable.ic_baseline_person_24
+                    )
+
                     cardView.titleText = item.credit.name
                     cardView.contentText =
                         "${
@@ -512,8 +483,11 @@ class CardPresenter(width: Int) : Presenter() {
                             .centerCrop()
                             .error(R.drawable.ic_baseline_broken_image_24)
                             .into(cardView.mainImageView)
+                    } ?: let {
+                        cardView.mainImageView.setImageResource(R.drawable.ic_baseline_person_24)
+
+                        cardView.mainImageView.scaleType = ImageView.ScaleType.FIT_CENTER
                     }
-                        ?: cardView.mainImageView.setImageResource(R.drawable.ic_baseline_cloud_off_24)
                 }
                 is BrowseMovieLoadResult.BrowseMovieLoadError -> {
                     cardView.mainImageView.setImageResource(R.drawable.ic_baseline_broken_image_24)
