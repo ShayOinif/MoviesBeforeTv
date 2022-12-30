@@ -27,6 +27,7 @@ import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
+import com.shayo.moviespoint.ui.DetailsOrigin
 import com.shayo.moviespoint.viewmodels.home.HomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -297,8 +298,8 @@ class MyBrowseFragment : BrowseSupportFragment() {
                     MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(
                         item.movie.id,
                         item.movie.type,
-                        item.category ?: "",
                         if (row?.id == FAVORITES_ID) DetailsOrigin.WATCHLIST else DetailsOrigin.CATEGORY,
+                        item.category ?: "",
                         item.position
                     )
                 findNavController().navigate(action)

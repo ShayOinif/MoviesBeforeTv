@@ -11,6 +11,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.shayo.movies.MovieManager
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
+import com.shayo.moviespoint.ui.DetailsOrigin
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -76,8 +77,8 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                     MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(
                         item.movie.id,
                         item.movie.type,
-                        query.value,
                         DetailsOrigin.SEARCH,
+                        query.value,
                         item.position
                     )
                 )

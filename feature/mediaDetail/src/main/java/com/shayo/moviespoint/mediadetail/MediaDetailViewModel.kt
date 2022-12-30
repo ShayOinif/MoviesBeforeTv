@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
-import androidx.paging.cachedIn
 import androidx.paging.map
 import com.google.android.youtube.player.YouTubePlayer
 import com.shayo.movies.*
@@ -114,12 +113,35 @@ internal class MediaDetailViewModel @Inject constructor(
                                             )
                                         }
                                     }
-                                }.cachedIn(viewModelScope)
+                                }
                             }
                             else -> {
                                 null
                             }
-                        } // TODO:
+                        },
+                        favoritesFlow = if (detailParams.detailsOrigin == DetailsOrigin.WATCHLIST) {
+                            movieManager.getFavoritesFlow(withGenres = false)
+                                .mapLatest { resultList ->
+                                    resultList.map { result ->
+                                        result.map { media ->
+                                            with(media) {
+                                                MoreItem(
+                                                    id, type,
+                                                    MediaCardItem(
+                                                        posterPath,
+                                                        title,
+                                                        "%.1f".format(voteAverage),
+                                                        releaseDate,
+                                                        inWatchlist = isFavorite,
+                                                        type = type
+                                                    ),
+                                                    position = 0,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                        } else null
                     )
                 }
         } ?: emptyFlow()
@@ -144,10 +166,11 @@ internal data class MoreItem(
 )
 
 internal data class MediaDetailUiState(
-    val media: Movie?,
+    val media: Movie?, // TODO: Map only to necessary for the screen
     val topCastAndDirector: TopCastAndDirector?,
     val videoIds: List<String>,
-    val moreFlow: Flow<PagingData<MoreItem>>?
+    val moreFlow: Flow<PagingData<MoreItem>>? = null,
+    val favoritesFlow: Flow<List<Result<MoreItem>>>? = null,
 )
 
 private data class DetailParams(

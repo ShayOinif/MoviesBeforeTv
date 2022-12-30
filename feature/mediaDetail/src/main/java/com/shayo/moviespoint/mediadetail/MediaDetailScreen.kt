@@ -1,13 +1,13 @@
 package com.shayo.moviespoint.mediadetail
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ActivityInfo
-import android.util.Log
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.Absolute.spacedBy
 import androidx.compose.foundation.lazy.LazyRow
@@ -46,12 +46,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.*
 
+private const val YOUTUBE_KEY = "1"
 
-@SuppressLint("ResourceType")
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalLifecycleComposeApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun MediaDetailScreen(
-    //modifier: Modifier = Modifier,
     mediaId: Int,
     mediaType: String,
     personClick: (personId: Int) -> Unit,
@@ -69,10 +69,8 @@ internal fun MediaDetailScreen(
     var isFullScreen by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(isFullScreen) {
-        Log.d("MyTag", "Exit full screen")
-
-        Log.d("MyTag", "has player: ${mediaDetailViewModel.currentPlayer != null}")
         mediaDetailViewModel.currentPlayer?.setFullscreen(false)
+        isFullScreen = false
     }
 
     LaunchedEffect(key1 = true) {
@@ -81,21 +79,23 @@ internal fun MediaDetailScreen(
 
     val mediaDetailUiState by mediaDetailViewModel.detailsFlow.collectAsStateWithLifecycle()
 
-    val items = mediaDetailUiState?.moreFlow?.collectAsLazyPagingItems()
+    // TODO: Make favorites paged so we can handle them the same
+    val moreItems = mediaDetailUiState?.moreFlow?.collectAsLazyPagingItems()
+
+    val favorites = mediaDetailUiState?.favoritesFlow?.collectAsStateWithLifecycle(emptyList())
 
     val localContext = LocalContext.current
 
     val scope = rememberCoroutineScope()
 
+    val span = remember { GridItemSpan(Int.MAX_VALUE) }
+
     mediaDetailUiState?.media?.let { currentMedia ->
-        /*Column(
-            modifier = Modifier.verticalScroll(rememberScrollState())
-        ) {*/
         LazyVerticalGrid(
             columns = GridCells.Adaptive(154.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 if (
                     GoogleApiAvailability.getInstance()
                         .isGooglePlayServicesAvailable(LocalContext.current) == ConnectionResult.SUCCESS
@@ -106,134 +106,138 @@ internal fun MediaDetailScreen(
                         var currContext: Context? = null
                         val uuid = UUID.randomUUID()
 
-                        // TODO: The button is for when there is an early inflation problem, fix another way
+                        val youTubeInitializer = remember {
+                            object : YouTubePlayer.OnInitializedListener {
+                                override fun onInitializationSuccess(
+                                    p0: YouTubePlayer.Provider?,
+                                    p1: YouTubePlayer?,
+                                    p2: Boolean
+                                ) {
+                                    player = p1
+                                    mediaDetailViewModel.currentPlayer = p1
 
-                        Box(
-                            contentAlignment = Alignment.Center
-                        ) {
-                            IconButton(onClick = {
-
-                                // TODO: Move some logic to functions for reusability
-                                player?.release()
-                                youtubeView?.onDestroy()
-
-                                youtubeView = YouTubePlayerFragment()
-
-                                (currContext as ComponentActivity).fragmentManager
-                                    .beginTransaction()
-                                    .replace(
-                                        99999,
-                                        youtubeView,
-                                        null
-                                    )
-                                    .commit()
-
-
-                                youtubeView?.initialize(
-                                    "1",
-                                    object : YouTubePlayer.OnInitializedListener {
-                                        override fun onInitializationSuccess(
-                                            p0: YouTubePlayer.Provider?,
-                                            p1: YouTubePlayer?,
-                                            p2: Boolean
-                                        ) {
-                                            player = p1
-
-                                            p1?.setPlaybackEventListener(object :
-                                                YouTubePlayer.PlaybackEventListener {
-                                                override fun onPlaying() {
-                                                    mediaDetailViewModel.playing = true
-                                                }
-
-                                                override fun onPaused() {
-                                                    mediaDetailViewModel.playing = false
-                                                }
-
-                                                override fun onStopped() {
-                                                    mediaDetailViewModel.playing = false
-                                                    mediaDetailViewModel.currentDur = null
-                                                }
-
-                                                override fun onBuffering(p0: Boolean) {
-                                                }
-
-                                                override fun onSeekTo(p0: Int) {
-                                                }
-                                            })
-
-                                            p1?.setPlaylistEventListener(object :
-                                                YouTubePlayer.PlaylistEventListener {
-                                                override fun onPrevious() {
-                                                    mediaDetailViewModel.currentVideo--
-
-                                                    if (mediaDetailViewModel.playing)
-                                                        player?.loadVideos(
-                                                            mediaDetailUiState?.videoIds,
-                                                            mediaDetailViewModel.currentVideo,
-                                                            0
-                                                        )
-                                                    else
-                                                        player?.cueVideos(
-                                                            mediaDetailUiState?.videoIds,
-                                                            mediaDetailViewModel.currentVideo,
-                                                            0
-                                                        )
-                                                }
-
-                                                override fun onNext() {
-                                                    mediaDetailViewModel.currentVideo++
-
-                                                    if (mediaDetailViewModel.playing)
-                                                        player?.loadVideos(
-                                                            mediaDetailUiState?.videoIds,
-                                                            mediaDetailViewModel.currentVideo,
-                                                            0
-                                                        )
-                                                    else
-                                                        player?.cueVideos(
-                                                            mediaDetailUiState?.videoIds,
-                                                            mediaDetailViewModel.currentVideo,
-                                                            0
-                                                        )
-                                                }
-
-                                                override fun onPlaylistEnded() {
-                                                }
-                                            })
-
-                                            p1?.setOnFullscreenListener {
-                                                if (!it)
-                                                    (localContext as ComponentActivity).requestedOrientation =
-                                                        ActivityInfo.SCREEN_ORIENTATION_SENSOR
-
-                                                isFullScreen = it
-                                            }
-
-                                            mediaDetailViewModel.currentDur?.let { currentDur ->
-                                                if (mediaDetailViewModel.playing)
-                                                    p1?.loadVideos(
-                                                        mediaDetailUiState?.videoIds,
-                                                        mediaDetailViewModel.currentVideo,
-                                                        currentDur
-                                                    )
-                                                else
-                                                    p1?.cueVideos(
-                                                        mediaDetailUiState?.videoIds,
-                                                        mediaDetailViewModel.currentVideo,
-                                                        currentDur
-                                                    )
-                                            } ?: p1?.cueVideos(mediaDetailUiState?.videoIds)
+                                    p1?.setPlaybackEventListener(object :
+                                        YouTubePlayer.PlaybackEventListener {
+                                        override fun onPlaying() {
+                                            mediaDetailViewModel.playing = true
                                         }
 
-                                        override fun onInitializationFailure(
-                                            p0: YouTubePlayer.Provider?,
-                                            p1: YouTubeInitializationResult?
-                                        ) {
-                                            // TODO:
+                                        override fun onPaused() {
+                                            mediaDetailViewModel.playing = false
+                                        }
+
+                                        override fun onStopped() {
+                                            mediaDetailViewModel.playing = false
+                                            mediaDetailViewModel.currentDur = null
+                                        }
+
+                                        override fun onBuffering(p0: Boolean) {
+                                        }
+
+                                        override fun onSeekTo(p0: Int) {
                                         }
                                     })
 
-                            }) {
+                                    p1?.setPlaylistEventListener(object :
+                                        YouTubePlayer.PlaylistEventListener {
+                                        override fun onPrevious() {
+                                            mediaDetailViewModel.currentVideo--
+
+                                            if (mediaDetailViewModel.playing)
+                                                player?.loadVideos(
+                                                    mediaDetailUiState?.videoIds,
+                                                    mediaDetailViewModel.currentVideo,
+                                                    0
+                                                )
+                                            else
+                                                player?.cueVideos(
+                                                    mediaDetailUiState?.videoIds,
+                                                    mediaDetailViewModel.currentVideo,
+                                                    0
+                                                )
+                                        }
+
+                                        override fun onNext() {
+                                            mediaDetailViewModel.currentVideo++
+
+                                            if (mediaDetailViewModel.playing)
+                                                player?.loadVideos(
+                                                    mediaDetailUiState?.videoIds,
+                                                    mediaDetailViewModel.currentVideo,
+                                                    0
+                                                )
+                                            else
+                                                player?.cueVideos(
+                                                    mediaDetailUiState?.videoIds,
+                                                    mediaDetailViewModel.currentVideo,
+                                                    0
+                                                )
+                                        }
+
+                                        override fun onPlaylistEnded() {
+                                        }
+                                    }
+
+                                    )
+
+                                    p1?.setOnFullscreenListener {
+                                        if (!it)
+                                            (localContext as ComponentActivity).requestedOrientation =
+                                                ActivityInfo.SCREEN_ORIENTATION_SENSOR
+
+                                        isFullScreen = it
+                                    }
+
+                                    mediaDetailViewModel.currentDur?.let { currentDur ->
+                                        if (mediaDetailViewModel.playing)
+                                            p1?.loadVideos(
+                                                mediaDetailUiState?.videoIds,
+                                                mediaDetailViewModel.currentVideo,
+                                                currentDur
+                                            )
+                                        else
+                                            p1?.cueVideos(
+                                                mediaDetailUiState?.videoIds,
+                                                mediaDetailViewModel.currentVideo,
+                                                currentDur
+                                            )
+                                    } ?: p1?.cueVideos(mediaDetailUiState?.videoIds)
+                                }
+
+                                override fun onInitializationFailure(
+                                    p0: YouTubePlayer.Provider?,
+                                    p1: YouTubeInitializationResult?
+                                ) {
+                                    // TODO:
+                                }
+                            }
+                        }
+
+                        // TODO: The button is for when there is an early inflation problem, fix another way
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    // TODO: Move some logic to functions for reusability
+                                    player?.release()
+                                    youtubeView?.onDestroy()
+
+                                    youtubeView = YouTubePlayerFragment()
+
+                                    (currContext as ComponentActivity).fragmentManager
+                                        .beginTransaction()
+                                        .replace(
+                                            R.id.player_frame,
+                                            youtubeView,
+                                            null
+                                        )
+                                        .commit()
+
+
+                                    youtubeView?.initialize(YOUTUBE_KEY, youTubeInitializer)
+                                },
+                            ) {
                                 Icon(Icons.Default.Refresh, "Reload Video")
                             }
 
@@ -242,12 +246,12 @@ internal fun MediaDetailScreen(
 
                                     FrameLayout(context).apply {
                                         // select any R.id.X from your project, it does not matter what it is, but container must have one for transaction below.
-                                        id = 99999
+                                        id = R.id.player_frame
 
                                         scope.launch(Dispatchers.Default) {
                                             MediaDetailViewModel.lock(uuid)
 
-                                            youtubeView =  YouTubePlayerFragment()
+                                            youtubeView = YouTubePlayerFragment()
 
                                             currContext = context
 
@@ -260,114 +264,7 @@ internal fun MediaDetailScreen(
                                                 )
                                                 .commit()
 
-                                            youtubeView?.initialize(
-                                                "1",
-                                                object : YouTubePlayer.OnInitializedListener {
-                                                    override fun onInitializationSuccess(
-                                                        p0: YouTubePlayer.Provider?,
-                                                        p1: YouTubePlayer?,
-                                                        p2: Boolean
-                                                    ) {
-                                                        player = p1
-
-                                                        Log.d("MyTag", "Setting current player")
-                                                        mediaDetailViewModel.currentPlayer = p1
-
-                                                        //p1?.setShowFullscreenButton(false)
-
-                                                        p1?.setPlaybackEventListener(object :
-                                                            YouTubePlayer.PlaybackEventListener {
-                                                            override fun onPlaying() {
-                                                                mediaDetailViewModel.playing = true
-                                                            }
-
-                                                            override fun onPaused() {
-                                                                mediaDetailViewModel.playing = false
-                                                            }
-
-                                                            override fun onStopped() {
-                                                                mediaDetailViewModel.playing = false
-                                                                mediaDetailViewModel.currentDur = null
-                                                            }
-
-                                                            override fun onBuffering(p0: Boolean) {
-                                                            }
-
-                                                            override fun onSeekTo(p0: Int) {
-                                                            }
-                                                        })
-
-                                                        p1?.setPlaylistEventListener(object :
-                                                            YouTubePlayer.PlaylistEventListener {
-                                                            override fun onPrevious() {
-                                                                mediaDetailViewModel.currentVideo--
-
-                                                                if (mediaDetailViewModel.playing)
-                                                                    player?.loadVideos(
-                                                                        mediaDetailUiState?.videoIds,
-                                                                        mediaDetailViewModel.currentVideo,
-                                                                        0
-                                                                    )
-                                                                else
-                                                                    player?.cueVideos(
-                                                                        mediaDetailUiState?.videoIds,
-                                                                        mediaDetailViewModel.currentVideo,
-                                                                        0
-                                                                    )
-                                                            }
-
-                                                            override fun onNext() {
-                                                                mediaDetailViewModel.currentVideo++
-
-                                                                if (mediaDetailViewModel.playing)
-                                                                    player?.loadVideos(
-                                                                        mediaDetailUiState?.videoIds,
-                                                                        mediaDetailViewModel.currentVideo,
-                                                                        0
-                                                                    )
-                                                                else
-                                                                    player?.cueVideos(
-                                                                        mediaDetailUiState?.videoIds,
-                                                                        mediaDetailViewModel.currentVideo,
-                                                                        0
-                                                                    )
-                                                            }
-
-                                                            override fun onPlaylistEnded() {
-                                                            }
-                                                        })
-
-                                                        p1?.setOnFullscreenListener {
-                                                            if (!it)
-                                                                (localContext as ComponentActivity).requestedOrientation =
-                                                                    ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                                                            
-                                                           isFullScreen = it
-                                                        }
-
-                                                        mediaDetailViewModel.currentDur?.let { currentDur ->
-                                                            if (mediaDetailViewModel.playing)
-                                                                p1?.loadVideos(
-                                                                    mediaDetailUiState?.videoIds,
-                                                                    mediaDetailViewModel.currentVideo,
-                                                                    currentDur
-                                                                )
-                                                            else
-                                                                p1?.cueVideos(
-                                                                    mediaDetailUiState?.videoIds,
-                                                                    mediaDetailViewModel.currentVideo,
-                                                                    currentDur
-                                                                )
-                                                        } ?: p1?.cueVideos(mediaDetailUiState?.videoIds)
-                                                    }
-
-                                                    override fun onInitializationFailure(
-                                                        p0: YouTubePlayer.Provider?,
-                                                        p1: YouTubeInitializationResult?
-                                                    ) {
-                                                        // TODO:
-                                                    }
-                                                })
+                                            youtubeView?.initialize(YOUTUBE_KEY, youTubeInitializer)
                                         }
                                     }
                                 },
@@ -378,15 +275,14 @@ internal fun MediaDetailScreen(
                         }
 
                         DisposableEffect(key1 = true) {
-                                onDispose {
-                                    mediaDetailViewModel.currentDur = player?.currentTimeMillis
+                            onDispose {
+                                mediaDetailViewModel.currentDur = player?.currentTimeMillis
+                                mediaDetailViewModel.playing = player?.isPlaying ?: false
+                                player?.release()
+                                //youtubeView?.onDestroy()
 
-                                    mediaDetailViewModel.playing = player?.isPlaying ?: false
-                                    player?.release()
-                                    youtubeView?.onDestroy()
-
-                                    MediaDetailViewModel.unLock(uuid)
-                                }
+                                MediaDetailViewModel.unLock(uuid)
+                            }
                         }
                     } else {
                         currentMedia.backdropPath?.let { backdropPath ->
@@ -450,7 +346,7 @@ internal fun MediaDetailScreen(
                 }
             }
 
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 Row {
                     currentMedia.posterPath?.let { posterPath ->
                         SubcomposeAsyncImage(
@@ -515,7 +411,7 @@ internal fun MediaDetailScreen(
             }
 
 
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 LongWatchlistButton(
                     inWatchlist = currentMedia.isFavorite, modifier = Modifier.wrapContentSize(
                         Alignment.CenterStart
@@ -525,7 +421,7 @@ internal fun MediaDetailScreen(
                 }
             }
 
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 Text(
                     text = "Release Date: ${currentMedia.releaseDate}",
                     style = MaterialTheme.typography.titleMedium,
@@ -533,7 +429,7 @@ internal fun MediaDetailScreen(
                 )
             }
 
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 Text(
                     text = "Rating: ${"%.1f".format(currentMedia.voteAverage)}/10",
                     style = MaterialTheme.typography.titleMedium,
@@ -541,9 +437,9 @@ internal fun MediaDetailScreen(
                 )
             }
 
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 Text(
-                    text = "${currentMedia.genres.joinToString(" - ") { it.name }}",
+                    text = currentMedia.genres.joinToString(" - ") { it.name },
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(8.dp),
                 )
@@ -664,7 +560,7 @@ internal fun MediaDetailScreen(
                 }
             }
 
-            item(span = { GridItemSpan(10) }) {
+            item(span = { span }) {
                 Text(
                     text = "Overview:\n${currentMedia.overview}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -672,9 +568,9 @@ internal fun MediaDetailScreen(
                 )
             }
 
-            items?.let {
+            if ((moreItems != null && moreItems.itemCount > 0) || (favorites != null && favorites.value.isNotEmpty())) {
 
-                item(span = { GridItemSpan(10) }) {
+                item(span = { span }) {
                     Card(
                         modifier = Modifier.padding(all = 8.dp)
                     ) {
@@ -689,29 +585,61 @@ internal fun MediaDetailScreen(
                     }
                 }
 
-                items(
-                    lazyPagingItems = items,
-                ) { item ->
-                    item?.let {
-                        MediaCard(
-                            item = item.mediaCardItem,
-                            watchlistCallback = {
-                                mediaDetailViewModel.watchlistClick(
-                                    item.id,
-                                    item.type
-                                )
-                            },
-                            modifier = Modifier.padding(8.dp),
-                            onClickCallback = {
-                                onMediaClick(
-                                    item.id,
-                                    item.type,
-                                    detailsOrigin,
-                                    queryOrCategory,
-                                    item.position
-                                )
-                            }
-                        )
+                moreItems?.let {
+                    items(
+                        lazyPagingItems = moreItems,
+                    ) { item ->
+                        item?.let {
+                            MediaCard(
+                                item = item.mediaCardItem,
+                                watchlistCallback = {
+                                    mediaDetailViewModel.watchlistClick(
+                                        item.id,
+                                        item.type
+                                    )
+                                },
+                                modifier = Modifier.padding(8.dp),
+                                onClickCallback = {
+                                    if (item.id != mediaId)
+                                        onMediaClick(
+                                            item.id,
+                                            item.type,
+                                            detailsOrigin,
+                                            queryOrCategory,
+                                            item.position
+                                        )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                favorites?.let { favoritesState ->
+                    items(
+                        items = favoritesState.value,
+                    ) { item ->
+                        item.map { moreItem ->
+                            MediaCard(
+                                item = moreItem.mediaCardItem,
+                                watchlistCallback = {
+                                    mediaDetailViewModel.watchlistClick(
+                                        moreItem.id,
+                                        moreItem.type
+                                    )
+                                },
+                                modifier = Modifier.padding(8.dp),
+                                onClickCallback = {
+                                    if (moreItem.id != mediaId)
+                                        onMediaClick(
+                                            moreItem.id,
+                                            moreItem.type,
+                                            detailsOrigin,
+                                            queryOrCategory,
+                                            moreItem.position
+                                        )
+                                }
+                            )
+                        } // TODO: Handle load failure from the result
                     }
                 }
             }

@@ -17,6 +17,7 @@ import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviespoint.person.Person
 import com.shayo.moviespoint.person.PersonRepository
+import com.shayo.moviespoint.ui.DetailsOrigin
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -79,8 +80,8 @@ class PersonFragment : DetailsSupportFragment() {
                             PersonFragmentDirections.actionPersonFragmentToDetailFragment(
                                 item.movie.id,
                                 item.movie.type,
-                                "",
                                 DetailsOrigin.NONE,
+                                "",
                                 item.position
                             )
                         findNavController().navigate(action)

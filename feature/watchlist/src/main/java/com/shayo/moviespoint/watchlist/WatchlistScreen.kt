@@ -18,13 +18,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shayo.moviespoint.ui.DetailsOrigin
 import com.shayo.moviespoint.ui.MediaCard
 
 @OptIn(ExperimentalLifecycleComposeApi::class)
 @Composable
 internal fun WatchlistScreen(
     //modifier: Modifier = Modifier,
-    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
+    onMediaClick: (
+        mediaId: Int, mediaType: String, detailsOrigin: DetailsOrigin,
+    ) -> Unit,
     watchlistViewModel: WatchlistViewModel = hiltViewModel(),
 ) {
     val watchlistItems by watchlistViewModel.watchlistFlow.collectAsStateWithLifecycle()
@@ -67,7 +70,7 @@ internal fun WatchlistScreen(
                     item = item.mediaCardItem,
                     watchlistCallback = { watchlistViewModel.watchlistClick(item.id, item.type) },
                     onClickCallback = {
-                        onMediaClick(item.id, item.type)
+                        onMediaClick(item.id, item.type, DetailsOrigin.WATCHLIST)
                     }
                 )
             }

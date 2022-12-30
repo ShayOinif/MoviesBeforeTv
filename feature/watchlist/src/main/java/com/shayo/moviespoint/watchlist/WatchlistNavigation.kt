@@ -9,6 +9,7 @@ import com.shayo.moviespoint.mediadetail.mediaDetailScreen
 import com.shayo.moviespoint.mediadetail.navigateToMediaDetail
 import com.shayo.moviespoint.personfeature.navigateToPerson
 import com.shayo.moviespoint.personfeature.personScreen
+import com.shayo.moviespoint.ui.DetailsOrigin
 
 const val WatchlistGraphRoutePattern = "watchlist"
 
@@ -20,13 +21,28 @@ fun NavGraphBuilder.watchlistGraph(
         startDestination = watchlistRoutePattern,
         route = WatchlistGraphRoutePattern,
     ) {
-        watchlistScreen(popup) { mediaId, mediaType ->
-            navController.navigateToMediaDetail(mediaId, mediaType, watchlistRoutePattern)
+        watchlistScreen(popup) { mediaId: Int, mediaType: String, detailsOrigin ->
+            navController.navigateToMediaDetail(
+                mediaId,
+                mediaType,
+                watchlistRoutePattern,
+                detailsOrigin,
+            )
         }
 
-        mediaDetailScreen(watchlistRoutePattern, { personId ->
-            navController.navigateToPerson(personId, watchlistRoutePattern)
-        }
+        mediaDetailScreen(
+            route = watchlistRoutePattern,
+            personClick = { personId ->
+                navController.navigateToPerson(personId, watchlistRoutePattern)
+            },
+            mediaClick = { mediaId, mediaType, detailsOrigin, _, _ ->
+                navController.navigateToMediaDetail(
+                    mediaId,
+                    mediaType,
+                    watchlistRoutePattern,
+                    detailsOrigin,
+                )
+            }
         )
 
         personScreen(watchlistRoutePattern) { mediaId, mediaType ->
@@ -39,7 +55,9 @@ internal const val watchlistRoutePattern = "watchlistScreen"
 
 internal fun NavGraphBuilder.watchlistScreen(
     popup: () -> Unit,
-    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
+    onMediaClick: (
+        mediaId: Int, mediaType: String, detailsOrigin: DetailsOrigin,
+    ) -> Unit,
 ) {
     composable(route = watchlistRoutePattern) {
         BackHandler { popup() }

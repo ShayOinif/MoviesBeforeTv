@@ -13,11 +13,10 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.map
 import com.shayo.movies.*
-import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import com.shayo.moviespoint.person.PersonRepository
-import com.shayo.moviespoint.ui.DetailsOrigin
+import com.shayo.moviespoint.ui.DetailsOrigin.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -84,11 +83,11 @@ class DetailFragment : DetailsSupportFragment() {
                 )
             )
 
-            if (navArgs.origin != DetailsOrigin.NONE) {
+            if (navArgs.origin != NONE) {
                 mAdapter.add(
                     ListRow(
                         HeaderItem("Browse More:"),
-                        if (navArgs.origin == DetailsOrigin.WATCHLIST) {
+                        if (navArgs.origin == WATCHLIST) {
                             ArrayObjectAdapter(cardPresenter).also { favoritesAdapter = it }
                         } else {
                             androidx.leanback.paging.PagingDataAdapter(
@@ -112,8 +111,8 @@ class DetailFragment : DetailsSupportFragment() {
                             DetailFragmentDirections.actionDetailFragmentSelf(
                                 item.movie.id,
                                 item.movie.type,
-                                queryOrCategory,
                                 navArgs.origin,
+                                queryOrCategory,
                                 item.position
                             )
                         findNavController().navigate(action)
@@ -235,10 +234,7 @@ class DetailFragment : DetailsSupportFragment() {
 
                 launch {
                     when (navArgs.origin) {
-                        DetailsOrigin.CATEGORY -> {
-
-                            val diff = RegularArrayAdapterDiff()
-
+                        CATEGORY -> {
                             moviesManager.getCategoryFlow(
                                 type = movieType,
                                 category = navArgs.queryOrCategory,
@@ -252,7 +248,7 @@ class DetailFragment : DetailsSupportFragment() {
                                 )
                             }
                         }
-                        DetailsOrigin.SEARCH -> {
+                        SEARCH -> {
                             moviesManager.getSearchFlow(
                                 navArgs.queryOrCategory,
                                 viewLifecycleOwner.lifecycleScope,
@@ -265,7 +261,7 @@ class DetailFragment : DetailsSupportFragment() {
                                 )
                             }
                         }
-                        DetailsOrigin.WATCHLIST -> {
+                        WATCHLIST -> {
                             moviesManager.getFavoritesFlow().collectLatest {
                                 val data = it.mapIndexed { index, result ->
                                     result.fold(

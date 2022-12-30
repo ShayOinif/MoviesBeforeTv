@@ -41,8 +41,7 @@
             app:argType="string" />
         <argument
             android:name="origin"
-            android:defaultValue="NONE"
-            app:argType="com.shayo.moviesbeforetv.tv.DetailsOrigin" />
+            app:argType="com.shayo.moviespoint.ui.DetailsOrigin" />
         <argument
             android:name="position"
             android:defaultValue="0"
