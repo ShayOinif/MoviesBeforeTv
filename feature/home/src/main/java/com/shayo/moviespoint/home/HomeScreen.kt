@@ -5,10 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -29,6 +26,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.items
+import com.shayo.moviespoint.ui.DetailsOrigin
 import com.shayo.moviespoint.ui.MediaCard
 import com.shayo.moviespoint.ui.MediaCardItem
 import com.shayo.moviespoint.viewmodels.home.HomeViewModel
@@ -45,6 +43,7 @@ internal data class HomeItem(
     val id: Int,
     val type: String,
     val mediaCardItem: MediaCardItem,
+    val position: Int,
 )
 
 // TODO: Change to Media category and put in components with the row of medias, get a variable to tell which media to load or something
@@ -55,7 +54,11 @@ internal data class HomeItem(
 @Composable
 internal fun HomeScreen(
     //modifier: Modifier = Modifier,
-    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
+    onMediaClick: (
+        mediaId: Int, mediaType: String, detailsOrigin: DetailsOrigin,
+        queryOrCategory: String,
+        position: Int
+    ) -> Unit,
     homeViewModel: HomeViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(key1 = true) {
@@ -73,7 +76,8 @@ internal fun HomeScreen(
                         releaseDate,
                         inWatchlist = isFavorite,
                         type = type
-                    )
+                    ),
+                    pagedMovie.position
                 )
             }
         }
@@ -200,7 +204,15 @@ internal fun HomeScreen(
                                 medias = categoriesPagingItems[category.nameRes] as? LazyPagingItems<HomeItem>
                                     ?: throw Exception("Missing category!"), // TODO: Handle nullness and unchecked cast
                                 watchlistCallback = homeViewModel::watchlistClick,
-                                onMediaClick = onMediaClick
+                                onMediaClick = { mediaId, mediaType, position ->
+                                    onMediaClick(
+                                        mediaId,
+                                        mediaType,
+                                        DetailsOrigin.CATEGORY,
+                                        category.name,
+                                        position
+                                    )
+                                }
                             )
                         }
                     }
@@ -219,7 +231,7 @@ internal fun HomeScreen(
 internal fun MediaRow(
     medias: LazyPagingItems<HomeItem>,
     watchlistCallback: (id: Int, type: String) -> Unit,
-    onMediaClick: (mediaId: Int, mediaType: String) -> Unit,
+    onMediaClick: (mediaId: Int, mediaType: String, position: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
 
@@ -248,17 +260,33 @@ internal fun MediaRow(
                 retryCallback = medias::retry
             )
 
-            items(
-                items = medias,
-                key = { item ->
-                    item.id
-                },
-            ) { homeItem ->
-                homeItem?.let {
+            if (medias.itemCount == 0) { // TODO: Handle when the list is empty
+                items(
+                    items = List(10) { null }
+                ) {
                     MediaCard(
-                        item = homeItem.mediaCardItem,
-                        watchlistCallback = { watchlistCallback(homeItem.id, homeItem.type) },
-                        onClickCallback = { onMediaClick(homeItem.id, homeItem.type) }
+                        item = null,
+                        watchlistCallback = { },
+                        onClickCallback = { }
+                    )
+                }
+            } else {
+                items(
+                    items = medias,
+                    key = { item ->
+                        item.id
+                    },
+                ) { homeItem ->
+                    homeItem?.let {
+                        MediaCard(
+                            item = homeItem.mediaCardItem,
+                            watchlistCallback = { watchlistCallback(homeItem.id, homeItem.type) },
+                            onClickCallback = { onMediaClick(homeItem.id, homeItem.type, homeItem.position) }
+                        )
+                    } ?: MediaCard(
+                        item = null,
+                        watchlistCallback = { },
+                        onClickCallback = { }
                     )
                 }
             }
@@ -289,8 +317,12 @@ internal fun MediaRow(
                 modifier = Modifier.padding(end = 16.dp),
                 onClick = {
                     coroutineScope.launch {
-                        // Animate scroll to the first item
-                        listState.animateScrollToItem(index = 0)
+                        if (listState.firstVisibleItemIndex > 40) {
+                            listState.scrollToItem(index = 0)
+                        } else {
+                            // Animate scroll to the first item
+                            listState.animateScrollToItem(index = 0)
+                        }
                     }
                 }
             ) {

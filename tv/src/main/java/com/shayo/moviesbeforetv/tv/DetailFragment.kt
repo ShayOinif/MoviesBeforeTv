@@ -17,6 +17,7 @@ import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import com.shayo.moviespoint.person.PersonRepository
+import com.shayo.moviespoint.ui.DetailsOrigin
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -294,8 +295,6 @@ class DetailFragment : DetailsSupportFragment() {
         }
     }
 }
-
-enum class DetailsOrigin { CATEGORY, WATCHLIST, SEARCH, NONE }
 
 data class DetailedMovie(
     val title: String,

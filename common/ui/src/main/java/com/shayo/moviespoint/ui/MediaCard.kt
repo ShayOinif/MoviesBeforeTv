@@ -23,7 +23,7 @@ import coil.request.ImageRequest
 
 @Composable
 fun MediaCard(
-    item: MediaCardItem,
+    item: MediaCardItem?,
     watchlistCallback: () -> Unit,
     modifier: Modifier = Modifier,
     onClickCallback: () -> Unit = {},
@@ -36,7 +36,7 @@ fun MediaCard(
             }
     ) {
 
-        item.posterPath?.let {
+        item?.posterPath?.let {
 
             var retryHash by remember { mutableStateOf(0) }
 
@@ -74,22 +74,29 @@ fun MediaCard(
                     .aspectRatio(2 / 3F) // TODO: Maybe move to a const
             )
         } ?: run {
-            Image(
-                imageVector = if (item.type == "movie")
-                    Icons.Default.LocalMovies
-                else
-                    Icons.Default.Tv,
-                contentDescription = null,
+            item?.let {
+                Image(
+                    imageVector = if (item.type == "movie") Icons.Default.LocalMovies
+                    else Icons.Default.Tv,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .width(154.dp) // TODO: Maybe move to a const
+                        .aspectRatio(2 / 3F) // TODO: Maybe move to a const
+                        .padding(horizontal = 16.dp),
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                )
+            } ?: Box(
                 modifier = Modifier
                     .width(154.dp) // TODO: Maybe move to a const
-                    .aspectRatio(2 / 3F) // TODO: Maybe move to a const
-                    .padding(horizontal = 16.dp),
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
-            )
+                    .aspectRatio(2 / 3F), // TODO: Maybe move to a const,
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         }
 
         Text(
-            text = item.title,
+            text = item?.title ?: "",
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -109,6 +116,7 @@ fun MediaCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -118,24 +126,29 @@ fun MediaCard(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Text(text = item.voteAverage, style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = item?.voteAverage ?: "",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
-                Icon(
-                    imageVector = if (item.type == "movie")
-                        Icons.Default.LocalMovies
-                    else
-                        Icons.Default.Tv,
-                    contentDescription = if (item.type == "movie")
-                        "Movie"
-                    else
-                        "TV Show",
-                )
-            }
+                item?.let {
+                    Icon(
+                        imageVector = if (item.type == "movie")
+                            Icons.Default.LocalMovies
+                        else
+                            Icons.Default.Tv,
+                        contentDescription = if (item.type == "movie")
+                            "Movie"
+                        else
+                            "TV Show",
+                    )
+                }
 
-            if (isLandscape) {
-                IconButton(onClick = watchlistCallback) {
-                    WatchlistIcon(inWatchlist = item.inWatchlist)
+                if (isLandscape) {
+                    IconButton(onClick = watchlistCallback) {
+                        WatchlistIcon(inWatchlist = item?.inWatchlist ?: false)
+                    }
                 }
             }
         }
@@ -143,7 +156,7 @@ fun MediaCard(
         // TODO: Maybe create another clickable surface
         if (!isLandscape) {
             LongWatchlistButton(
-                inWatchlist = item.inWatchlist,
+                inWatchlist = item?.inWatchlist ?: false,
                 watchlistCallback = watchlistCallback
             )
         }

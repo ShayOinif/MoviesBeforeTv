@@ -53,9 +53,7 @@ dependencies {
     implementation project(':feature:home')
     implementation project(':feature:account')
     implementation project(':feature:watchlist')
-    implementation project(':feature:mediaDetail')
     implementation project(':feature:search')
-    implementation project(':feature:person')
     implementation project(':common:work')
 
     implementation platform(libs.androidx.compose.bom)

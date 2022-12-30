@@ -14,9 +14,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun LongWatchlistButton(
     inWatchlist: Boolean,
+    modifier: Modifier = Modifier,
     watchlistCallback: () -> Unit,
 ) {
-    TextButton(onClick = watchlistCallback) {
+    TextButton(onClick = watchlistCallback, modifier = modifier) {
         WatchlistIcon(inWatchlist = inWatchlist)
 
         Spacer(

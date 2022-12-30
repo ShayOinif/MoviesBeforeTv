@@ -53,6 +53,7 @@ class HomeViewModel @Inject constructor(
                             CategoryName.POPULAR_SHOWS -> R.string.popular_shows
                             CategoryName.TOP_SHOWS -> R.string.top_shows
                         },
+                        name = category.name.category,
                         flow = category.flow.map { pagedData ->
                             pagedData.map { pagedMovie ->
                                 homeViewModelParams.itemMapper(pagedMovie, category.name.category)
@@ -66,36 +67,6 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.Lazily,
         initialValue = null
     )
-
-
-        /*getCategoriesFlowsUseCase(viewModelScope, false)
-        .map { category ->
-            HomeCategory(
-                nameRes = when (category.name) {
-                    CategoryName.POPULAR_MOVIES -> R.string.popular_movies
-                    CategoryName.UPCOMING_MOVIES -> R.string.upcoming_movies
-                    CategoryName.POPULAR_SHOWS -> R.string.popular_shows
-                    CategoryName.TOP_SHOWS -> R.string.top_shows
-                },
-                flow = category.flow.map { pagedData ->
-                    pagedData.map { pagedMovie ->
-                        with(pagedMovie.movie) {
-                            HomeItem(
-                                id, type,
-
-                                MediaCardItem(
-                                    posterPath,
-                                    title,
-                                    voteAverage.toString(),
-                                    releaseDate,
-                                    inWatchlist = isFavorite,
-                                )
-                            )
-                        }
-                    }
-                }.cachedIn(viewModelScope)
-            )
-        }*/
 
     fun watchlistClick(id: Int, type: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -113,5 +84,6 @@ internal data class HomeViewModelParams<T: Any>(
 data class HomeCategory<T: Any>(
     @StringRes
     val nameRes: Int,
+    val name: String,
     val flow: Flow<PagingData<T>>
 )

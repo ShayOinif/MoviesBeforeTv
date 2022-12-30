@@ -51,6 +51,8 @@ dependencies {
     implementation project(':data:movies')
     implementation project(':viewmodels:home')
     implementation project(':common:ui')
+    implementation project(':feature:mediaDetail')
+    implementation project(':feature:person')
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)

@@ -59,6 +59,8 @@ dependencies {
 
     implementation 'androidx.fragment:fragment-ktx:1.5.5'
 
+    implementation 'androidx.paging:paging-compose:1.0.0-alpha17'
+
     implementation(libs.compose.navigation)
     implementation(libs.compose.hilt.navigation)
 

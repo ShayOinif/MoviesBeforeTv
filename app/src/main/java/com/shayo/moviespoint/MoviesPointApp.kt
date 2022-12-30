@@ -1,36 +1,25 @@
 package com.shayo.moviespoint
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.shayo.moviespoint.account.AccountGraphRoutePattern
 import com.shayo.moviespoint.account.accountGraph
 import com.shayo.moviespoint.common.snackbar.SnackBarManager
 import com.shayo.moviespoint.home.HomeGraphRoutePattern
 import com.shayo.moviespoint.home.homeGraph
-import com.shayo.moviespoint.mediadetail.mediaDetailGraph
-import com.shayo.moviespoint.mediadetail.navigateToMediaDetail
-import com.shayo.moviespoint.personfeature.navigateToPerson
-import com.shayo.moviespoint.personfeature.personGraph
-import com.shayo.moviespoint.search.SearchGraphRoutePattern
 import com.shayo.moviespoint.search.searchGraph
 import com.shayo.moviespoint.ui.theme.MoviesPointTheme
-import com.shayo.moviespoint.watchlist.WatchlistGraphRoutePattern
 import com.shayo.moviespoint.watchlist.watchlistGraph
 import kotlinx.coroutines.CoroutineScope
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +28,9 @@ fun MoviesPointApp(
 ) {
     MoviesPointTheme {
         val appState = rememberAppState()
+
+        val navBackStackEntry by appState.navController.currentBackStackEntryAsState()
+        val currentDestination = navBackStackEntry?.destination
 
         Scaffold(
             snackbarHost = {
@@ -52,47 +44,18 @@ fun MoviesPointApp(
             },
             bottomBar = {
                 if (navOption == NavOption.BOTTOM_BAR) {
-                    // TODO: Make one list of navigation options
                     NavigationBar {
-                        NavigationBarItem(
-                            selected = appState.tab == Tab.HOME,
-                            onClick = {
-                                appState.navigate(HomeGraphRoutePattern)
-                            },
-                            icon = { Icon(Icons.Default.Home, "Home Tab") },
-                            label = { Text("Home") },
-                            alwaysShowLabel = false,
-                        )
-
-                        NavigationBarItem(
-                            selected = appState.tab == Tab.SEARCH,
-                            onClick = {
-                                appState.navigate(SearchGraphRoutePattern)
-                            },
-                            icon = { Icon(Icons.Default.Search, "Search Tab") },
-                            label = { Text("Search") },
-                            alwaysShowLabel = false,
-                        )
-
-                        NavigationBarItem(
-                            selected = appState.tab == Tab.WATCHLIST,
-                            onClick = {
-                                appState.navigate(WatchlistGraphRoutePattern)
-                            },
-                            icon = { Icon(Icons.Default.List, "Watchlist Tab") },
-                            label = { Text("Watchlist") },
-                            alwaysShowLabel = false,
-                        )
-
-                        NavigationBarItem(
-                            selected = appState.tab == Tab.ACCOUNT,
-                            onClick = {
-                                appState.navigate(AccountGraphRoutePattern)
-                            },
-                            icon = { Icon(Icons.Default.AccountCircle, "Account Tab") },
-                            label = { Text("Account") },
-                            alwaysShowLabel = false,
-                        )
+                        screens.forEach { moviesPointScreen ->
+                            NavigationBarItem(
+                                selected = currentDestination?.hierarchy?.any { it.route == moviesPointScreen.route } == true,
+                                onClick = {
+                                    appState.navigate(moviesPointScreen.route)
+                                },
+                                icon = { Icon(moviesPointScreen.icon, null) },
+                                label = { Text(moviesPointScreen.label) },
+                                alwaysShowLabel = false,
+                            )
+                        }
                     }
                 }
             }
@@ -101,7 +64,6 @@ fun MoviesPointApp(
                 NavOption.NAV_RAIL -> {
                     Row {
                         NavigationRail(
-                            modifier = Modifier.padding(innerPaddingModifier),
                             header = {
                                 Icon(
                                     painterResource(id = R.drawable.ic_launcher_foreground),
@@ -110,60 +72,25 @@ fun MoviesPointApp(
                                 )
                             }
                         ) {
-                            NavigationRailItem(
-                                selected = appState.tab == Tab.HOME,
-                                onClick = {
-                                    appState.navigate(HomeGraphRoutePattern)
-                                },
-                                icon = { Icon(Icons.Default.Home, "Home Tab") },
-                                label = { Text("Home") },
-                                alwaysShowLabel = false,
-                            )
-
-                            NavigationRailItem(
-                                selected = appState.tab == Tab.SEARCH,
-                                onClick = {
-                                    appState.navigate(SearchGraphRoutePattern)
-                                },
-                                icon = { Icon(Icons.Default.Search, "Search Tab") },
-                                label = { Text("Search") },
-                                alwaysShowLabel = false,
-                            )
-
-                            NavigationRailItem(
-                                selected = appState.tab == Tab.WATCHLIST,
-                                onClick = {
-                                    appState.navigate(WatchlistGraphRoutePattern)
-                                },
-                                icon = { Icon(Icons.Default.List, "Watchlist Tab") },
-                                label = { Text("Watchlist") },
-                                alwaysShowLabel = false,
-                            )
-
-                            NavigationRailItem(
-                                selected = appState.tab == Tab.ACCOUNT,
-                                onClick = {
-                                    appState.navigate(AccountGraphRoutePattern)
-                                },
-                                icon = { Icon(Icons.Default.AccountCircle, "Account Tab") },
-                                label = { Text("Account") },
-                                alwaysShowLabel = false,
-                            )
+                            screens.forEach { moviesPointScreen ->
+                                NavigationRailItem(
+                                    selected = currentDestination?.hierarchy?.any { it.route == moviesPointScreen.route } == true,
+                                    onClick = {
+                                        appState.navigate(moviesPointScreen.route)
+                                    },
+                                    icon = { Icon(moviesPointScreen.icon, null) },
+                                    label = { Text(moviesPointScreen.label) },
+                                    alwaysShowLabel = false,
+                                )
+                            }
                         }
 
-                        NavHost(
-                            navController = appState.navController,
-                            startDestination = HomeGraphRoutePattern,
-                            modifier = Modifier.padding(innerPaddingModifier)
-                        ) {
-                            moviesPointGraph(appState)
-                        }
+                        MoviesPointNavHost(appState)
                     }
 
                 }
                 NavOption.NAV_DRAWER -> {
                     PermanentNavigationDrawer(
-                        //modifier = Modifier.padding(innerPaddingModifier).fillMaxSize(),
                         drawerContent = {
                             PermanentDrawerSheet(
                                 modifier = Modifier.width(180.dp),
@@ -175,66 +102,47 @@ fun MoviesPointApp(
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
 
-                                NavigationDrawerItem(
-                                    selected = appState.tab == Tab.HOME,
-                                    onClick = {
-                                        appState.navigate(HomeGraphRoutePattern)
-                                    },
-                                    icon = { Icon(Icons.Default.Home, "Home Tab") },
-                                    label = { Text("Home") },
-                                )
-
-                                NavigationDrawerItem(
-                                    selected = appState.tab == Tab.SEARCH,
-                                    onClick = {
-                                        appState.navigate(SearchGraphRoutePattern)
-                                    },
-                                    icon = { Icon(Icons.Default.Search, "Search Tab") },
-                                    label = { Text("Search") },
-                                )
-
-                                NavigationDrawerItem(
-                                    selected = appState.tab == Tab.WATCHLIST,
-                                    onClick = {
-                                        appState.navigate(WatchlistGraphRoutePattern)
-                                    },
-                                    icon = { Icon(Icons.Default.List, "Watchlist Tab") },
-                                    label = { Text("Watchlist") },
-                                )
-
-                                NavigationDrawerItem(
-                                    selected = appState.tab == Tab.ACCOUNT,
-                                    onClick = {
-                                        appState.navigate(AccountGraphRoutePattern)
-                                    },
-                                    icon = { Icon(Icons.Default.AccountCircle, "Account Tab") },
-                                    label = { Text("Account") },
-                                )
+                                screens.forEach { moviesPointScreen ->
+                                    NavigationDrawerItem(
+                                        selected = currentDestination?.hierarchy?.any { it.route == moviesPointScreen.route } == true,
+                                        onClick = {
+                                            appState.navigate(moviesPointScreen.route)
+                                        },
+                                        icon = { Icon(moviesPointScreen.icon, null) },
+                                        label = { Text(moviesPointScreen.label) },
+                                    )
+                                }
                             }
                         }
                     ) {
-                        NavHost(
-                            navController = appState.navController,
-                            startDestination = HomeGraphRoutePattern,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            moviesPointGraph(appState)
-                        }
+                        MoviesPointNavHost(
+                            appState = appState,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                 }
                 else -> {
-                    NavHost(
-                        navController = appState.navController,
-                        startDestination = HomeGraphRoutePattern,
-                        modifier = Modifier.padding(innerPaddingModifier)
-                    ) {
-                        moviesPointGraph(appState)
-                    }
+                    MoviesPointNavHost(
+                        appState = appState,
+                        modifier = Modifier.padding(innerPaddingModifier),
+                    )
                 }
             }
-
-
         }
+    }
+}
+
+@Composable
+fun MoviesPointNavHost(
+    appState: MoviesPointAppState,
+    modifier: Modifier = Modifier,
+) {
+    NavHost(
+        navController = appState.navController,
+        startDestination = HomeGraphRoutePattern,
+        modifier = modifier
+    ) {
+        moviesPointGraph(appState)
     }
 }
 
@@ -250,28 +158,13 @@ private fun rememberAppState(
     }
 
 private fun NavGraphBuilder.moviesPointGraph(
-    appState: MoviesPointAppState
+    appState: MoviesPointAppState,
 ) {
-    homeGraph { mediaId, mediaType ->
-        appState.navController.navigateToMediaDetail(mediaId, mediaType)
-    }
+    homeGraph(appState.navController)
 
-    watchlistGraph { mediaId, mediaType ->
-        appState.navController.navigateToMediaDetail(mediaId, mediaType)
-    }
+    watchlistGraph(appState::popup, appState.navController)
 
-    searchGraph(
-        appState.navController::navigateToMediaDetail,
-        appState.navController::navigateToPerson
-    )
+    searchGraph(appState::popup, appState.navController)
 
-    accountGraph(appState::postSnackBarMessage)
-
-    mediaDetailGraph { personId ->
-        appState.navController.navigateToPerson(personId)
-    }
-
-    personGraph { mediaId, mediaType ->
-        appState.navController.navigateToMediaDetail(mediaId, mediaType)
-    }
+    accountGraph(appState::popup, appState::postSnackBarMessage)
 }

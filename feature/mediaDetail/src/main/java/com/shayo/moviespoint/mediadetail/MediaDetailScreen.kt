@@ -1,20 +1,23 @@
 package com.shayo.moviespoint.mediadetail
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.ActivityInfo
+import android.util.Log
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.Absolute.spacedBy
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
@@ -27,6 +30,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.common.ConnectionResult
@@ -34,341 +39,695 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.youtube.player.YouTubeInitializationResult
 import com.google.android.youtube.player.YouTubePlayer
 import com.google.android.youtube.player.YouTubePlayerFragment
+import com.shayo.moviespoint.ui.DetailsOrigin
 import com.shayo.moviespoint.ui.LongWatchlistButton
+import com.shayo.moviespoint.ui.MediaCard
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.*
+
 
 @SuppressLint("ResourceType")
-@OptIn(ExperimentalLifecycleComposeApi::class)
+@OptIn(ExperimentalLifecycleComposeApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun MediaDetailScreen(
     //modifier: Modifier = Modifier,
     mediaId: Int,
     mediaType: String,
     personClick: (personId: Int) -> Unit,
+    onMediaClick: (
+        mediaId: Int, mediaType: String,
+        detailsOrigin: DetailsOrigin?,
+        queryOrCategory: String?,
+        position: Int,
+    ) -> Unit,
+    detailsOrigin: DetailsOrigin,
+    queryOrCategory: String? = null,
+    position: Int? = null,
     mediaDetailViewModel: MediaDetailViewModel = hiltViewModel(),
 ) {
+    var isFullScreen by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler(isFullScreen) {
+        Log.d("MyTag", "Exit full screen")
+
+        Log.d("MyTag", "has player: ${mediaDetailViewModel.currentPlayer != null}")
+        mediaDetailViewModel.currentPlayer?.setFullscreen(false)
+    }
+
     LaunchedEffect(key1 = true) {
-        mediaDetailViewModel.setMedia(mediaId, mediaType)
+        mediaDetailViewModel.setMedia(mediaId, mediaType, detailsOrigin, queryOrCategory, position)
     }
 
     val mediaDetailUiState by mediaDetailViewModel.detailsFlow.collectAsStateWithLifecycle()
 
+    val items = mediaDetailUiState?.moreFlow?.collectAsLazyPagingItems()
+
+    val localContext = LocalContext.current
+
+    val scope = rememberCoroutineScope()
+
     mediaDetailUiState?.media?.let { currentMedia ->
-        Column(
+        /*Column(
             modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {*/
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(154.dp),
+            modifier = Modifier.fillMaxSize(),
         ) {
-            if (
-                GoogleApiAvailability.getInstance()
-                    .isGooglePlayServicesAvailable(LocalContext.current) == ConnectionResult.SUCCESS
-            ) {
-                mediaDetailUiState?.videoId?.let { key ->
-                    var player: YouTubePlayer? = null
+            item(span = { GridItemSpan(10) }) {
+                if (
+                    GoogleApiAvailability.getInstance()
+                        .isGooglePlayServicesAvailable(LocalContext.current) == ConnectionResult.SUCCESS
+                ) {
+                    if (mediaDetailUiState?.videoIds?.isNotEmpty() == true) {
+                        var player: YouTubePlayer? = null
+                        var youtubeView: YouTubePlayerFragment? = null
+                        var currContext: Context? = null
+                        val uuid = UUID.randomUUID()
 
-                    DisposableEffect(key1 = true) {
-                        onDispose {
-                            player?.release()
-                        }
-                    }
-                    AndroidView(
-                        factory = {
-                            val youtubeApiInitializedListener =
-                                object : YouTubePlayer.OnInitializedListener {
-                                    override fun onInitializationSuccess(
-                                        p0: YouTubePlayer.Provider?,
-                                        p1: YouTubePlayer?,
-                                        p2: Boolean
-                                    ) {
-                                        player = p1
-                                        p1?.cueVideo(key)
-                                    }
+                        // TODO: The button is for when there is an early inflation problem, fix another way
 
-                                    override fun onInitializationFailure(
-                                        p0: YouTubePlayer.Provider?,
-                                        p1: YouTubeInitializationResult?
-                                    ) {
-                                        // TODO:
-                                    }
-                                }
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(onClick = {
 
-                            FrameLayout(it).apply {
-                                // select any R.id.X from your project, it does not matter what it is, but container must have one for transaction below.
-                                id = 99999
+                                // TODO: Move some logic to functions for reusability
+                                player?.release()
+                                youtubeView?.onDestroy()
 
-                                val youtubeView = YouTubePlayerFragment()
+                                youtubeView = YouTubePlayerFragment()
 
-                                (it as ComponentActivity).fragmentManager
+                                (currContext as ComponentActivity).fragmentManager
                                     .beginTransaction()
-                                    .add(
-                                        id,
+                                    .replace(
+                                        99999,
                                         youtubeView,
                                         null
                                     )
                                     .commit()
 
-                                youtubeView.initialize("1", youtubeApiInitializedListener)
+
+                                youtubeView?.initialize(
+                                    "1",
+                                    object : YouTubePlayer.OnInitializedListener {
+                                        override fun onInitializationSuccess(
+                                            p0: YouTubePlayer.Provider?,
+                                            p1: YouTubePlayer?,
+                                            p2: Boolean
+                                        ) {
+                                            player = p1
+
+                                            p1?.setPlaybackEventListener(object :
+                                                YouTubePlayer.PlaybackEventListener {
+                                                override fun onPlaying() {
+                                                    mediaDetailViewModel.playing = true
+                                                }
+
+                                                override fun onPaused() {
+                                                    mediaDetailViewModel.playing = false
+                                                }
+
+                                                override fun onStopped() {
+                                                    mediaDetailViewModel.playing = false
+                                                    mediaDetailViewModel.currentDur = null
+                                                }
+
+                                                override fun onBuffering(p0: Boolean) {
+                                                }
+
+                                                override fun onSeekTo(p0: Int) {
+                                                }
+                                            })
+
+                                            p1?.setPlaylistEventListener(object :
+                                                YouTubePlayer.PlaylistEventListener {
+                                                override fun onPrevious() {
+                                                    mediaDetailViewModel.currentVideo--
+
+                                                    if (mediaDetailViewModel.playing)
+                                                        player?.loadVideos(
+                                                            mediaDetailUiState?.videoIds,
+                                                            mediaDetailViewModel.currentVideo,
+                                                            0
+                                                        )
+                                                    else
+                                                        player?.cueVideos(
+                                                            mediaDetailUiState?.videoIds,
+                                                            mediaDetailViewModel.currentVideo,
+                                                            0
+                                                        )
+                                                }
+
+                                                override fun onNext() {
+                                                    mediaDetailViewModel.currentVideo++
+
+                                                    if (mediaDetailViewModel.playing)
+                                                        player?.loadVideos(
+                                                            mediaDetailUiState?.videoIds,
+                                                            mediaDetailViewModel.currentVideo,
+                                                            0
+                                                        )
+                                                    else
+                                                        player?.cueVideos(
+                                                            mediaDetailUiState?.videoIds,
+                                                            mediaDetailViewModel.currentVideo,
+                                                            0
+                                                        )
+                                                }
+
+                                                override fun onPlaylistEnded() {
+                                                }
+                                            })
+
+                                            p1?.setOnFullscreenListener {
+                                                if (!it)
+                                                    (localContext as ComponentActivity).requestedOrientation =
+                                                        ActivityInfo.SCREEN_ORIENTATION_SENSOR
+
+                                                isFullScreen = it
+                                            }
+
+                                            mediaDetailViewModel.currentDur?.let { currentDur ->
+                                                if (mediaDetailViewModel.playing)
+                                                    p1?.loadVideos(
+                                                        mediaDetailUiState?.videoIds,
+                                                        mediaDetailViewModel.currentVideo,
+                                                        currentDur
+                                                    )
+                                                else
+                                                    p1?.cueVideos(
+                                                        mediaDetailUiState?.videoIds,
+                                                        mediaDetailViewModel.currentVideo,
+                                                        currentDur
+                                                    )
+                                            } ?: p1?.cueVideos(mediaDetailUiState?.videoIds)
+                                        }
+
+                                        override fun onInitializationFailure(
+                                            p0: YouTubePlayer.Provider?,
+                                            p1: YouTubeInitializationResult?
+                                        ) {
+                                            // TODO:
+                                        }
+                                    })
+
+                            }) {
+                                Icon(Icons.Default.Refresh, "Reload Video")
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                    )
-                } ?: currentMedia.backdropPath?.let { backdropPath ->
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .tag("Coil request for image") // TODO
-                            .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
-                            .crossfade(true)
-                            .build(),
-                        loading = {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        },
-                        error = {
-                            Icon(
-                                Icons.Default.BrokenImage,
-                                null,
-                                modifier = Modifier.fillMaxSize()
+
+                            AndroidView(
+                                factory = { context ->
+
+                                    FrameLayout(context).apply {
+                                        // select any R.id.X from your project, it does not matter what it is, but container must have one for transaction below.
+                                        id = 99999
+
+                                        scope.launch(Dispatchers.Default) {
+                                            MediaDetailViewModel.lock(uuid)
+
+                                            youtubeView =  YouTubePlayerFragment()
+
+                                            currContext = context
+
+                                            (context as ComponentActivity).fragmentManager
+                                                .beginTransaction()
+                                                .add(
+                                                    id,
+                                                    youtubeView,
+                                                    null
+                                                )
+                                                .commit()
+
+                                            youtubeView?.initialize(
+                                                "1",
+                                                object : YouTubePlayer.OnInitializedListener {
+                                                    override fun onInitializationSuccess(
+                                                        p0: YouTubePlayer.Provider?,
+                                                        p1: YouTubePlayer?,
+                                                        p2: Boolean
+                                                    ) {
+                                                        player = p1
+
+                                                        Log.d("MyTag", "Setting current player")
+                                                        mediaDetailViewModel.currentPlayer = p1
+
+                                                        //p1?.setShowFullscreenButton(false)
+
+                                                        p1?.setPlaybackEventListener(object :
+                                                            YouTubePlayer.PlaybackEventListener {
+                                                            override fun onPlaying() {
+                                                                mediaDetailViewModel.playing = true
+                                                            }
+
+                                                            override fun onPaused() {
+                                                                mediaDetailViewModel.playing = false
+                                                            }
+
+                                                            override fun onStopped() {
+                                                                mediaDetailViewModel.playing = false
+                                                                mediaDetailViewModel.currentDur = null
+                                                            }
+
+                                                            override fun onBuffering(p0: Boolean) {
+                                                            }
+
+                                                            override fun onSeekTo(p0: Int) {
+                                                            }
+                                                        })
+
+                                                        p1?.setPlaylistEventListener(object :
+                                                            YouTubePlayer.PlaylistEventListener {
+                                                            override fun onPrevious() {
+                                                                mediaDetailViewModel.currentVideo--
+
+                                                                if (mediaDetailViewModel.playing)
+                                                                    player?.loadVideos(
+                                                                        mediaDetailUiState?.videoIds,
+                                                                        mediaDetailViewModel.currentVideo,
+                                                                        0
+                                                                    )
+                                                                else
+                                                                    player?.cueVideos(
+                                                                        mediaDetailUiState?.videoIds,
+                                                                        mediaDetailViewModel.currentVideo,
+                                                                        0
+                                                                    )
+                                                            }
+
+                                                            override fun onNext() {
+                                                                mediaDetailViewModel.currentVideo++
+
+                                                                if (mediaDetailViewModel.playing)
+                                                                    player?.loadVideos(
+                                                                        mediaDetailUiState?.videoIds,
+                                                                        mediaDetailViewModel.currentVideo,
+                                                                        0
+                                                                    )
+                                                                else
+                                                                    player?.cueVideos(
+                                                                        mediaDetailUiState?.videoIds,
+                                                                        mediaDetailViewModel.currentVideo,
+                                                                        0
+                                                                    )
+                                                            }
+
+                                                            override fun onPlaylistEnded() {
+                                                            }
+                                                        })
+
+                                                        p1?.setOnFullscreenListener {
+                                                            if (!it)
+                                                                (localContext as ComponentActivity).requestedOrientation =
+                                                                    ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                                                            
+                                                           isFullScreen = it
+                                                        }
+
+                                                        mediaDetailViewModel.currentDur?.let { currentDur ->
+                                                            if (mediaDetailViewModel.playing)
+                                                                p1?.loadVideos(
+                                                                    mediaDetailUiState?.videoIds,
+                                                                    mediaDetailViewModel.currentVideo,
+                                                                    currentDur
+                                                                )
+                                                            else
+                                                                p1?.cueVideos(
+                                                                    mediaDetailUiState?.videoIds,
+                                                                    mediaDetailViewModel.currentVideo,
+                                                                    currentDur
+                                                                )
+                                                        } ?: p1?.cueVideos(mediaDetailUiState?.videoIds)
+                                                    }
+
+                                                    override fun onInitializationFailure(
+                                                        p0: YouTubePlayer.Provider?,
+                                                        p1: YouTubeInitializationResult?
+                                                    ) {
+                                                        // TODO:
+                                                    }
+                                                })
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16 / 9F),
                             )
-                        },
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth() // TODO: Maybe move to a const
-                            .aspectRatio(16 / 9F) // TODO: Maybe move to a const
-                    )
-                }
-            } else {
-                currentMedia.backdropPath?.let { backdropPath ->
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .tag("Coil request for image") // TODO
-                            .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
-                            .crossfade(true)
-                            .build(),
-                        loading = {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        },
-                        error = {
-                            Icon(
-                                Icons.Default.BrokenImage,
-                                null,
-                                modifier = Modifier.fillMaxSize()
+                        }
+
+                        DisposableEffect(key1 = true) {
+                                onDispose {
+                                    mediaDetailViewModel.currentDur = player?.currentTimeMillis
+
+                                    mediaDetailViewModel.playing = player?.isPlaying ?: false
+                                    player?.release()
+                                    youtubeView?.onDestroy()
+
+                                    MediaDetailViewModel.unLock(uuid)
+                                }
+                        }
+                    } else {
+                        currentMedia.backdropPath?.let { backdropPath ->
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .tag("Coil request for image") // TODO
+                                    .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
+                                    .crossfade(true)
+                                    .build(),
+                                loading = {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                },
+                                error = {
+                                    Icon(
+                                        Icons.Default.BrokenImage,
+                                        null,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                },
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth() // TODO: Maybe move to a const
+                                    .aspectRatio(16 / 9F) // TODO: Maybe move to a const
                             )
-                        },
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth() // TODO: Maybe move to a const
-                            .aspectRatio(16 / 9F) // TODO: Maybe move to a const
-                    )
+                        }
+                    }
+                } else {
+                    currentMedia.backdropPath?.let { backdropPath ->
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .tag("Coil request for image") // TODO
+                                .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
+                                .crossfade(true)
+                                .build(),
+                            loading = {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            },
+                            error = {
+                                Icon(
+                                    Icons.Default.BrokenImage,
+                                    null,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            },
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth() // TODO: Maybe move to a const
+                                .aspectRatio(16 / 9F) // TODO: Maybe move to a const
+                        )
+                    }
                 }
             }
 
-            Row {
-                currentMedia.posterPath?.let { posterPath ->
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .tag("Coil request for image") // TODO
-                            .data("https://image.tmdb.org/t/p/w154$posterPath") // TODO: Get base url from somewhere else
-                            .crossfade(true)
-                            .build(),
-                        loading = {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        },
-                        error = {
-                            Icon(
-                                Icons.Default.BrokenImage,
-                                null,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        },
+            item(span = { GridItemSpan(10) }) {
+                Row {
+                    currentMedia.posterPath?.let { posterPath ->
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .tag("Coil request for image") // TODO
+                                .data("https://image.tmdb.org/t/p/w154$posterPath") // TODO: Get base url from somewhere else
+                                .crossfade(true)
+                                .build(),
+                            loading = {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            },
+                            error = {
+                                Icon(
+                                    Icons.Default.BrokenImage,
+                                    null,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            },
+                            contentDescription = null,
+                            modifier = Modifier
+                                .width(140.dp) // TODO: Maybe move to a const
+                                .aspectRatio(2 / 3F) // TODO: Maybe move to a const
+                                .padding(8.dp)
+                        )
+                    } ?: Image(
+                        imageVector = if (currentMedia.type == "movie")
+                            Icons.Default.LocalMovies
+                        else
+                            Icons.Default.Tv,
                         contentDescription = null,
                         modifier = Modifier
                             .width(140.dp) // TODO: Maybe move to a const
                             .aspectRatio(2 / 3F) // TODO: Maybe move to a const
                             .padding(8.dp)
                     )
-                } ?: Image(
-                    imageVector = if (currentMedia.type == "movie")
-                        Icons.Default.LocalMovies
-                    else
-                        Icons.Default.Tv,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .width(140.dp) // TODO: Maybe move to a const
-                        .aspectRatio(2 / 3F) // TODO: Maybe move to a const
-                        .padding(8.dp)
-                )
 
-                Column(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    verticalArrangement = spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = currentMedia.title,
-                        style = MaterialTheme.typography.headlineMedium,
-                    )
+                    Column(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        verticalArrangement = spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = currentMedia.title,
+                            style = MaterialTheme.typography.headlineMedium,
+                        )
 
-                    Text(
-                        text = stringResource(
-                            id = if (currentMedia.type == "movie")
-                                R.string.movie
-                        else
-                            R.string.show,
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                        Text(
+                            text = stringResource(
+                                id = if (currentMedia.type == "movie")
+                                    R.string.movie
+                                else
+                                    R.string.show,
+                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
                 }
             }
 
 
-            LongWatchlistButton(inWatchlist = currentMedia.isFavorite) {
-                mediaDetailViewModel.watchlistClick(currentMedia.id, currentMedia.type)
+            item(span = { GridItemSpan(10) }) {
+                LongWatchlistButton(
+                    inWatchlist = currentMedia.isFavorite, modifier = Modifier.wrapContentSize(
+                        Alignment.CenterStart
+                    )
+                ) {
+                    mediaDetailViewModel.watchlistClick(currentMedia.id, currentMedia.type)
+                }
             }
 
-            Text(
-                text = "Release Date: ${currentMedia.releaseDate}",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(8.dp),
-            )
+            item(span = { GridItemSpan(10) }) {
+                Text(
+                    text = "Release Date: ${currentMedia.releaseDate}",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
 
-            Text(
-                text = "Rating: ${"%.1f".format(currentMedia.voteAverage)}/10",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(8.dp),
-            )
+            item(span = { GridItemSpan(10) }) {
+                Text(
+                    text = "Rating: ${"%.1f".format(currentMedia.voteAverage)}/10",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
 
-            Text(
-                text = "${currentMedia.genres.joinToString(" - ") { it.name }}",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(8.dp),
-            )
+            item(span = { GridItemSpan(10) }) {
+                Text(
+                    text = "${currentMedia.genres.joinToString(" - ") { it.name }}",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
 
             mediaDetailUiState?.topCastAndDirector?.let { topCastAndDirector ->
 
                 topCastAndDirector.director?.let { director ->
-                    Text(
-                        text = "Director: ${director.name}",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(8.dp),
-                    )
+                    item(span = { GridItemSpan(10) }) {
+                        Text(
+                            text = "Director: ${director.name}",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }
                 }
 
                 if (topCastAndDirector.cast.isNotEmpty()) {
-                    Text(
-                        text = "Cast:",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(8.dp),
-                    )
+                    item(span = { GridItemSpan(10) }) {
+                        Text(
+                            text = "Cast:",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }
 
-                    LazyRow(
-                        horizontalArrangement = spacedBy(8.dp),
-                        contentPadding = PaddingValues(8.dp)
-                    ) {
-                        items(
-                            items = topCastAndDirector.cast,
-                            key = { credit ->
-                                credit.id
-                            },
-                        ) { credit ->
-                            // TODO: Maybe move to common for reuse
+                    item(span = { GridItemSpan(10) }) {
+                        LazyRow(
+                            horizontalArrangement = spacedBy(8.dp),
+                            contentPadding = PaddingValues(8.dp)
+                        ) {
+                            items(
+                                items = topCastAndDirector.cast,
+                                key = { credit ->
+                                    credit.id
+                                },
+                            ) { credit ->
+                                // TODO: Maybe move to common for reuse
 
-                            Card(
-                                modifier = Modifier
-                                    .width(140.dp)
-                                    .clickable {
-                                        personClick(credit.id)
-                                    }
-                            ) {
-                                credit.profilePath?.let {
-                                    var retryHash by remember { mutableStateOf(0) }
+                                Card(
+                                    modifier = Modifier
+                                        .width(140.dp)
+                                        .clickable {
+                                            personClick(credit.id)
+                                        }
+                                ) {
+                                    credit.profilePath?.let {
+                                        var retryHash by remember { mutableStateOf(0) }
 
-                                    SubcomposeAsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data("https://image.tmdb.org/t/p/w185${credit.profilePath}")
-                                            .setParameter(
-                                                "retry_hash",
-                                                retryHash,
-                                                memoryCacheKey = null
-                                            )
-                                            .crossfade(true)
-                                            .build(),
-                                        loading = {
-                                            Box(
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator()
-                                            }
-                                        },
-                                        error = {
-                                            Box(
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                IconButton(onClick = { retryHash++ }) {
-                                                    Icon(
-                                                        Icons.Filled.Refresh,
-                                                        null,
-                                                    )
+                                        SubcomposeAsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data("https://image.tmdb.org/t/p/w185${credit.profilePath}")
+                                                .setParameter(
+                                                    "retry_hash",
+                                                    retryHash,
+                                                    memoryCacheKey = null
+                                                )
+                                                .crossfade(true)
+                                                .build(),
+                                            loading = {
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator()
                                                 }
-                                            }
-                                        },
+                                            },
+                                            error = {
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    IconButton(onClick = { retryHash++ }) {
+                                                        Icon(
+                                                            Icons.Filled.Refresh,
+                                                            null,
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .width(140.dp)
+                                                .aspectRatio(2 / 3F),
+                                            contentScale = ContentScale.FillWidth,
+                                        )
+                                    } ?: Image(
+                                        imageVector = Icons.Default.Person,
                                         contentDescription = null,
                                         modifier = Modifier
                                             .width(140.dp)
                                             .aspectRatio(2 / 3F),
                                         contentScale = ContentScale.FillWidth,
+                                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
                                     )
-                                } ?: Image(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .width(140.dp)
-                                        .aspectRatio(2 / 3F),
-                                    contentScale = ContentScale.FillWidth,
-                                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
-                                )
 
-                                Spacer(modifier = Modifier.size(4.dp))
+                                    Spacer(modifier = Modifier.size(4.dp))
 
-                                Text(
-                                    text = credit.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(start = 8.dp),
-                                    overflow = TextOverflow.Ellipsis,
-                                    maxLines = 1,
-                                )
+                                    Text(
+                                        text = credit.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = 8.dp),
+                                        overflow = TextOverflow.Ellipsis,
+                                        maxLines = 1,
+                                    )
 
-                                Text(
-                                    text = credit.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
-                                    overflow = TextOverflow.Ellipsis,
-                                    maxLines = 1,
-                                )
+                                    Text(
+                                        text = credit.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
+                                        overflow = TextOverflow.Ellipsis,
+                                        maxLines = 1,
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            Text(
-                text = "Overview:\n${currentMedia.overview}",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(8.dp),
-            )
+            item(span = { GridItemSpan(10) }) {
+                Text(
+                    text = "Overview:\n${currentMedia.overview}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
+
+            items?.let {
+
+                item(span = { GridItemSpan(10) }) {
+                    Card(
+                        modifier = Modifier.padding(all = 8.dp)
+                    ) {
+                        Text(
+                            text = "Discover More",
+                            modifier = Modifier
+                                .padding(
+                                    all = 16.dp,
+                                ),
+                            style = MaterialTheme.typography.headlineLarge,
+                        )
+                    }
+                }
+
+                items(
+                    lazyPagingItems = items,
+                ) { item ->
+                    item?.let {
+                        MediaCard(
+                            item = item.mediaCardItem,
+                            watchlistCallback = {
+                                mediaDetailViewModel.watchlistClick(
+                                    item.id,
+                                    item.type
+                                )
+                            },
+                            modifier = Modifier.padding(8.dp),
+                            onClickCallback = {
+                                onMediaClick(
+                                    item.id,
+                                    item.type,
+                                    detailsOrigin,
+                                    queryOrCategory,
+                                    item.position
+                                )
+                            }
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+// TODO: Figure out how to save position by key or something
+@ExperimentalFoundationApi
+private fun <T : Any> LazyGridScope.items(
+    lazyPagingItems: LazyPagingItems<T>,
+    itemContent: @Composable LazyGridItemScope.(value: T?) -> Unit
+) {
+    items(
+        count = lazyPagingItems.itemCount
+    ) { index ->
+        itemContent(lazyPagingItems[index])
     }
 }

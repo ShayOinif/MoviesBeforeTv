@@ -66,6 +66,10 @@ internal fun SearchScreen(
         LazyListState()
     }
 
+    LaunchedEffect(key1 = query) {
+        searchListState.scrollToItem(0)
+    }
+
     val scope = rememberCoroutineScope()
 
     val keyboardController = LocalSoftwareKeyboardController.current
