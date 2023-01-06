@@ -11,6 +11,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.analytics.ktx.logEvent
+import com.google.firebase.ktx.Firebase
 import com.shayo.movies.GenreRepository
 import com.shayo.movies.MovieManager
 import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
@@ -49,6 +53,10 @@ class PersonFragment : DetailsSupportFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        Firebase.analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW) {
+            param(FirebaseAnalytics.Param.SCREEN_NAME, "Person - TV")
+        }
+
         backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
         val navArgs by navArgs<PersonFragmentArgs>()
@@ -80,8 +88,8 @@ class PersonFragment : DetailsSupportFragment() {
                             PersonFragmentDirections.actionPersonFragmentToDetailFragment(
                                 item.movie.id,
                                 item.movie.type,
-                                DetailsOrigin.NONE,
                                 "",
+                                DetailsOrigin.NONE,
                                 item.position
                             )
                         findNavController().navigate(action)

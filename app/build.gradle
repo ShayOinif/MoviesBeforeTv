@@ -3,6 +3,8 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
     alias(libs.plugins.hilt.plug)
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
 }
 
 android {
@@ -58,6 +60,11 @@ dependencies {
 
     implementation platform(libs.androidx.compose.bom)
 
+    implementation platform(libs.firebase.bom)
+
+    implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    implementation 'com.google.firebase:firebase-analytics-ktx'
+
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
 
@@ -68,7 +75,7 @@ dependencies {
     implementation(libs.lifecycle.runtime)
     implementation(libs.activity.compose)
 
-    implementation 'androidx.compose.material3:material3-window-size-class:1.0.1'
+    implementation 'androidx.compose.material3:material3-window-size-class:1.1.0-alpha03'
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.test)

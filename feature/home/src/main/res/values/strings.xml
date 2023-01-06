@@ -6,4 +6,7 @@
     <string name="top_shows">Top Rated TV Shows</string>-->
     <string name="error_loading_text">Error Loading, Retry?</string>
     <string name="load_retry_desc">Load retry</string>
+    <string name="usage_dialog">This app collects and sends basic usage and diagnostics reports to our server.\nIn a case you don\'t accept, no data will be collected.\nYou\'ll be able to change this setting in the account screen.</string>
+    <string name="accept">Accept</string>
+    <string name="deny">Deny</string>
 </resources>

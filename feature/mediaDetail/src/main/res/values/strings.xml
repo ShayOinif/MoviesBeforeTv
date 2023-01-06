@@ -4,4 +4,5 @@
     <!-- SearchScreen.kt -->
     <string name="movie">Movie</string>
     <string name="show">TV Show</string>
+    <string name="discover_more">Discover More</string>
 </resources>

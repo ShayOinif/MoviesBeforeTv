@@ -1,19 +1,15 @@
 package com.shayo.moviespoint.account
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.Absolute.spacedBy
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,14 +36,18 @@ internal fun AccountScreen(
     accountViewModel: AccountViewModel = hiltViewModel(),
 ) {
     val user by accountViewModel.userFlow.collectAsStateWithLifecycle()
+    val usage by accountViewModel.usageFlow.collectAsStateWithLifecycle()
+
     val context = LocalContext.current
+
     val launcher = rememberLauncherForActivityResult(
         contract = FirebaseAuthUIActivityResultContract(),
         onResult = { result ->
             result.idpResponse?.error?.message?.let { errorMessage ->
                 postMessageSnackBar("Error: $errorMessage")
             }
-        })
+        }
+    )
 
     Column(
         modifier = Modifier
@@ -98,5 +98,23 @@ internal fun AccountScreen(
                 Text(stringResource(id = R.string.login))
             }
         }
+
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.usage_reports),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            IconToggleButton(checked = usage, onCheckedChange = accountViewModel::toggleUsage) {
+                Icon(
+                    imageVector = Icons.Default.BarChart,
+                    contentDescription = stringResource(R.string.toggle_cd)
+                )
+            }
+        }
+
     }
 }

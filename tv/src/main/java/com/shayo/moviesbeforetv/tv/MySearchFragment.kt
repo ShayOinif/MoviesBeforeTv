@@ -9,6 +9,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.paging.PagingData
 import androidx.paging.map
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.analytics.ktx.logEvent
+import com.google.firebase.ktx.Firebase
 import com.shayo.movies.MovieManager
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
 import com.shayo.moviespoint.ui.DetailsOrigin
@@ -36,6 +40,10 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
     @OptIn(FlowPreview::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Firebase.analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW) {
+            param(FirebaseAnalytics.Param.SCREEN_NAME, "Search - TV")
+        }
 
         backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
@@ -77,8 +85,8 @@ class MySearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchRe
                     MySearchFragmentDirections.actionMySearchFragmentToDetailFragment(
                         item.movie.id,
                         item.movie.type,
-                        DetailsOrigin.SEARCH,
                         query.value,
+                        DetailsOrigin.SEARCH,
                         item.position
                     )
                 )

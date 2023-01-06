@@ -1,6 +1,7 @@
 package com.shayo.moviespoint.ui
 
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -146,9 +147,12 @@ fun MediaCard(
                 }
 
                 if (isLandscape) {
-                    IconButton(onClick = watchlistCallback) {
-                        WatchlistIcon(inWatchlist = item?.inWatchlist ?: false)
-                    }
+                    item?.inWatchlist?.let {
+                        IconButton(onClick = watchlistCallback) {
+                            WatchlistIcon(inWatchlist = item.inWatchlist)
+                        }
+                    } ?: run { Log.d("MyTAg", "Loading")
+                        CircularProgressIndicator() }
                 }
             }
         }
@@ -156,7 +160,7 @@ fun MediaCard(
         // TODO: Maybe create another clickable surface
         if (!isLandscape) {
             LongWatchlistButton(
-                inWatchlist = item?.inWatchlist ?: false,
+                inWatchlist = item?.inWatchlist,
                 watchlistCallback = watchlistCallback
             )
         }

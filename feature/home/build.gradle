@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
 
+    // TODO: Movie paging compose to version catalog and reuse
     implementation 'androidx.paging:paging-compose:1.0.0-alpha17'
 
     implementation(libs.compose.navigation)

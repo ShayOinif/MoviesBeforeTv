@@ -8,6 +8,7 @@ import androidx.paging.cachedIn
 import androidx.paging.map
 import com.shayo.movies.MovieManager
 import com.shayo.movies.PagedItem
+import com.shayo.moviespoint.data.usage.UsageRepository
 import com.shayo.moviespoint.getcategoriesflows.CategoryName
 import com.shayo.moviespoint.getcategoriesflows.GetCategoriesFlowsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,25 +19,34 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.reflect.KClass
 
-/* TODO: Right now the categories are refreshed only when the app is created, so for a next day refresh
- *  the app must be destroyed before a refresh would happen, fix by collecting with lifecycle and
- *  make the categories a flow instead of a simple list or, by registering a worker that refreshes
- *  the categories once a day.
- */
-
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val movieManager: MovieManager,
     getCategoriesFlowsUseCase: GetCategoriesFlowsUseCase,
+    private val usageRepository: UsageRepository,
 ) : ViewModel() {
 
     // TODO: Make internal once there are tests
     private val homeViewModelParamsFlow = MutableStateFlow<HomeViewModelParams<*>?>(null)
 
+    private val waitingUpdate = MutableStateFlow(mutableMapOf<Int, Unit?>())
+
+    val shouldAskUsageFlow = usageRepository.shouldAskFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = null
+    )
+
+    fun markUsage(enabled: Boolean) {
+        usageRepository.changeUsage(enabled)
+
+        usageRepository.markAsked()
+    }
+
     fun <T: Any> setup(
         withGenres: Boolean,
         itemClass: KClass<T>,
-        itemMapper: (pagedMovie: PagedItem.PagedMovie, category: String) ->  T,
+        itemMapper: (pagedMovie: PagedItem.PagedMovie, category: String, watchlistInProgress: Boolean) ->  T,
     ) {
         homeViewModelParamsFlow.value = HomeViewModelParams(itemClass, itemMapper, withGenres)
     }
@@ -54,9 +64,12 @@ class HomeViewModel @Inject constructor(
                             CategoryName.TOP_SHOWS -> R.string.top_shows
                         },
                         name = category.name.category,
-                        flow = category.flow.map { pagedData ->
-                            pagedData.map { pagedMovie ->
-                                homeViewModelParams.itemMapper(pagedMovie, category.name.category)
+                        flow = combine(
+                            category.flow,
+                            waitingUpdate
+                        ) { categoryFlow, waitingFlow ->
+                            categoryFlow.map { pagedMovie ->
+                                    homeViewModelParams.itemMapper(pagedMovie, category.name.category, waitingFlow.containsKey(pagedMovie.movie.id))
                             }
                         }.cachedIn(viewModelScope)
                     )
@@ -69,15 +82,27 @@ class HomeViewModel @Inject constructor(
     )
 
     fun watchlistClick(id: Int, type: String) {
+        waitingUpdate.update {
+            val newMap = it.toMutableMap()
+            newMap[id] = null
+            newMap
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             movieManager.toggleFavorite(id, type)
+
+            waitingUpdate.update {
+                val newMap = it.toMutableMap()
+                newMap.remove(id)
+                newMap
+            }
         }
     }
 }
 
 internal data class HomeViewModelParams<T: Any>(
     val itemClass: KClass<T>,
-    val itemMapper: (pagedMovie: PagedItem.PagedMovie, category: String) ->  T,
+    val itemMapper: (pagedMovie: PagedItem.PagedMovie, category: String, watchlistInProgress: Boolean) ->  T,
     val withGenres: Boolean,
 )
 

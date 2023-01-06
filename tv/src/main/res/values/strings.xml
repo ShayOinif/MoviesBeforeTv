@@ -1,10 +1,11 @@
 <resources>
     <string name="app_name">Movies Point</string>
-    <string name="dismiss_error">Ok</string>
+    <string name="dismiss_error">OK</string>
     <plurals name="trailers">
         <item quantity="one">Watch Trailer</item>
         <item quantity="other">Watch Trailers</item>
     </plurals>
+
 
     <!-- PersonFragment.kt -->
     <string name="filmography">Filmography:</string>
@@ -17,4 +18,9 @@
     <string name="title">%1$s - %2$s</string>
     <string name="movie">Movie</string>
     <string name="show">TV Show</string>
+
+    <!-- SettingsCard.kt -->
+    <string name="enabled">Enabled</string>
+    <string name="disabled">Disabled</string>
+    <string name="usage">Usage &amp; Diagnostics Reports: %1$s</string>
 </resources>

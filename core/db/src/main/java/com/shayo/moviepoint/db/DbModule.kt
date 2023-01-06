@@ -51,4 +51,12 @@ object DbModule {
         context: Context,
     ): ProgramsDao =
         MovieDb.getDb(context).programsDao()
+
+    @Provides
+    @Singleton
+    fun provideQueryDao(
+        @ApplicationContext
+        context: Context,
+    ): QueryDao =
+        MovieDb.getDb(context).queryDao()
 }

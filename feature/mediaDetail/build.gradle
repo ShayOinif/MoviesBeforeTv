@@ -4,6 +4,7 @@ plugins {
     id 'kotlin-kapt'
     alias(libs.plugins.hilt.plug)
     id 'com.google.gms.google-services'
+    id 'kotlin-parcelize'
 }
 
 android {
@@ -57,7 +58,7 @@ dependencies {
     implementation files('libs/YouTubeAndroidPlayerApi.jar')
     kapt(libs.hilt.compiler)
 
-    implementation 'androidx.fragment:fragment-ktx:1.5.5'
+    implementation 'androidx.fragment:fragment-ktx:1.6.0-alpha04'
 
     implementation 'androidx.paging:paging-compose:1.0.0-alpha17'
 

@@ -36,9 +36,9 @@ class MainActivity : ComponentActivity() {
             super.onLost(network)
 
             if (
-                conMgr.getActiveNetworkInfo() == null
-                || conMgr.getActiveNetworkInfo()?.isAvailable() != true
-                || conMgr.getActiveNetworkInfo()?.isConnected() != true
+                conMgr.activeNetworkInfo == null
+                || conMgr.activeNetworkInfo?.isAvailable != true
+                || conMgr.activeNetworkInfo?.isConnected != true
             ) {
                 SnackBarManager.messages.value =
                     SnackBarMessage.NetworkMessage.NoNetwork("You're Offline, Some Features Might Not Be Available")
@@ -70,9 +70,9 @@ class MainActivity : ComponentActivity() {
         super.onResume()
 
         if (
-            conMgr.getActiveNetworkInfo() == null
-            || conMgr.getActiveNetworkInfo()?.isAvailable() != true
-            || conMgr.getActiveNetworkInfo()?.isConnected() != true
+            conMgr.activeNetworkInfo == null
+            || conMgr.activeNetworkInfo?.isAvailable != true
+            || conMgr.activeNetworkInfo?.isConnected != true
         ) {
             SnackBarManager.messages.value =
                 SnackBarMessage.NetworkMessage.NoNetwork("You're Offline, Some Features Might Not Be Available")

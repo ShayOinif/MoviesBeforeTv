@@ -49,6 +49,7 @@ dependencies {
     implementation platform(libs.androidx.compose.bom)
 
     implementation project(':data:movies')
+    implementation project(':data:usage')
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
@@ -64,6 +65,8 @@ dependencies {
     implementation(libs.lifecycle.runtime)
     implementation(libs.activity.compose)
     implementation libs.lifecycle.runtime.compose
+
+    implementation 'androidx.compose.material:material-icons-extended'
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.test)

@@ -48,6 +48,7 @@ dependencies {
     implementation platform(libs.androidx.compose.bom)
 
     implementation project(':data:movies')
+    implementation project(':data:query')
     implementation project(':common:ui')
     implementation project(':feature:mediaDetail')
     implementation project(':feature:person')

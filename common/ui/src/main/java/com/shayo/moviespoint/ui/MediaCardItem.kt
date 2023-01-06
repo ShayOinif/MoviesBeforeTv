@@ -6,5 +6,5 @@ data class MediaCardItem(
     val voteAverage: String,
     val releaseDate: String?,
     val type: String,
-    val inWatchlist: Boolean = false,
+    val inWatchlist: Boolean? = false,
 )

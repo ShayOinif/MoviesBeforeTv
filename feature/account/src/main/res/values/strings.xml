@@ -5,4 +5,6 @@
     <string name="no_user">You\'re not logged in</string>
     <string name="login">Login/Signup</string>
     <string name="logout">Logout</string>
+    <string name="usage_reports"><![CDATA[Enable Usage & Diagnostics Reports?]]></string>
+    <string name="toggle_cd">Toggle Usage Reports</string>
 </resources>

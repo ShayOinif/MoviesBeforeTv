@@ -8,4 +8,5 @@
     <string name="movie">Movie</string>
     <string name="show">TV Show</string>
     <string name="person">Person</string>
+    <string name="delete_history">Delete History</string>
 </resources>

@@ -4,6 +4,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Stable
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.analytics.ktx.logEvent
+import com.google.firebase.ktx.Firebase
 import com.shayo.moviespoint.common.snackbar.SnackBarManager
 import com.shayo.moviespoint.common.snackbar.SnackBarMessage
 import com.shayo.moviespoint.home.HomeGraphRoutePattern
@@ -49,6 +53,10 @@ class MoviesPointAppState(
     }
 
     fun navigate(route: String) {
+        Firebase.analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW) {
+            param(FirebaseAnalytics.Param.SCREEN_NAME, route)
+        }
+
         navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) {
                 saveState = true

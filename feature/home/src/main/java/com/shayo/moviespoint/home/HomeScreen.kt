@@ -48,8 +48,6 @@ internal data class HomeItem(
 
 // TODO: Change to Media category and put in components with the row of medias, get a variable to tell which media to load or something
 // TODO: Reusable with the view model, less code
-// TODO: Handle not remembering state in the column, the row is fine
-
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLifecycleComposeApi::class)
 @Composable
 internal fun HomeScreen(
@@ -61,162 +59,201 @@ internal fun HomeScreen(
     ) -> Unit,
     homeViewModel: HomeViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(key1 = true) {
-        homeViewModel.setup(
-            withGenres = false,
-            HomeItem::class,
-        ) { pagedMovie, _ ->
-            with(pagedMovie.movie) {
-                HomeItem(
-                    id, type,
-                    MediaCardItem(
-                        posterPath,
-                        title,
-                        "%.1f".format(voteAverage),
-                        releaseDate,
-                        inWatchlist = isFavorite,
-                        type = type
-                    ),
-                    pagedMovie.position
-                )
-            }
-        }
-    }
+    val shouldAsk by homeViewModel.shouldAskUsageFlow.collectAsStateWithLifecycle()
 
-    val categories by homeViewModel.categoriesFlows.collectAsStateWithLifecycle()
-
-    categories?.let { currentCategories ->
-        val categoriesListState = rememberSaveable(saver = LazyListState.Saver) {
-            LazyListState()
-        }
-
-        val scope = rememberCoroutineScope()
-
-        val isTop by remember {
-            derivedStateOf { categoriesListState.firstVisibleItemIndex == 0 }
-        }
-
-        BackHandler(
-            enabled = !isTop
-        ) {
-            scope.launch {
-                scope.launch {
-                    categoriesListState.animateScrollToItem(0)
-                }
-            }
-        }
-
-
-        val categoriesPagingItems = currentCategories.associate { homeCategory ->
-            Pair(homeCategory.nameRes, homeCategory.flow.collectAsLazyPagingItems())
-        }
-
-        val refreshState by remember {
-            derivedStateOf {
-                categoriesPagingItems.map { (_, pagingItems) ->
-                    pagingItems.loadState.refresh
-                }
-            }
-        }
-
-        when {
-            refreshState.contains(LoadState.Loading) -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            refreshState.any { categoryRefreshState ->
-                categoryRefreshState is LoadState.Error
-            } -> {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "Errors:\n${
-                            categoriesPagingItems.filter { (_, pagingItems) ->
-                                pagingItems.loadState.refresh is LoadState.Error
-                            }.map { (_, pagingItems) ->
-                                (pagingItems.loadState.refresh as LoadState.Error).error.message ?: ""
-                            }.toSet().joinToString(".\n") { it }
-                        }.\nRetry?",
-                    )
-                    Spacer(
-                        modifier = Modifier.size(16.dp)
-                    )
-                    IconButton(
+    shouldAsk?.let { currentShouldAsk ->
+        if (currentShouldAsk) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = {
+                    Text(text = "Usage & Diagnostics")
+                },
+                text = {
+                    Text(text = stringResource(id = R.string.usage_dialog))
+                },
+                confirmButton = {
+                    Button(
                         onClick = {
-                            categoriesPagingItems.filter { (_, pagingItems) ->
-                                pagingItems.loadState.refresh is LoadState.Error
-                            }.forEach { (_, pagingItems) ->
-                                pagingItems.refresh()
-                            }
+                            homeViewModel.markUsage(enabled = true)
                         },
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape),
-                        colors = IconButtonDefaults.filledIconButtonColors(),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(id = R.string.load_retry_desc)
+                        Text(stringResource(R.string.accept))
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            homeViewModel.markUsage(enabled = false)
+                        },
+                    ) {
+                        Text(stringResource(R.string.deny))
+                    }
+                },
+            )
+        } else {
+            LaunchedEffect(key1 = true) {
+                homeViewModel.setup(
+                    withGenres = false,
+                    HomeItem::class,
+                ) { pagedMovie, _, watchlistInProgress ->
+                    with(pagedMovie.movie) {
+                        HomeItem(
+                            id, type,
+                            MediaCardItem(
+                                posterPath,
+                                title,
+                                "%.1f".format(voteAverage),
+                                releaseDate,
+                                inWatchlist = if (watchlistInProgress) null else isFavorite,
+                                type = type
+                            ),
+                            pagedMovie.position
                         )
                     }
                 }
             }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    state = categoriesListState,
-                    contentPadding = PaddingValues(
-                        bottom = 8.dp
-                    )
-                ) {
-                    for (category in currentCategories) {
-                        stickyHeader(
-                            key = -category.nameRes,
-                            contentType = MediaRowContentTypes.HEADER,
-                        ) {
-                            Card(
-                                modifier = Modifier.padding(all = 8.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(id = category.nameRes),
-                                    modifier = Modifier
-                                        .padding(
-                                            all = 16.dp,
-                                        ),
-                                    style = MaterialTheme.typography.headlineLarge,
-                                )
-                            }
-                        }
 
-                        item(
-                            key = category.nameRes,
-                            contentType = MediaRowContentTypes.CATEGORY_ROW,
-                        ) {
-                            MediaRow(
-                                medias = categoriesPagingItems[category.nameRes] as? LazyPagingItems<HomeItem>
-                                    ?: throw Exception("Missing category!"), // TODO: Handle nullness and unchecked cast
-                                watchlistCallback = homeViewModel::watchlistClick,
-                                onMediaClick = { mediaId, mediaType, position ->
-                                    onMediaClick(
-                                        mediaId,
-                                        mediaType,
-                                        DetailsOrigin.CATEGORY,
-                                        category.name,
-                                        position
-                                    )
-                                }
-                            )
+            val categories by homeViewModel.categoriesFlows.collectAsStateWithLifecycle()
+
+            categories?.let { currentCategories ->
+                val categoriesListState = rememberSaveable(saver = LazyListState.Saver) {
+                    LazyListState()
+                }
+
+                val scope = rememberCoroutineScope()
+
+                val isTop by remember {
+                    derivedStateOf { categoriesListState.firstVisibleItemIndex == 0 }
+                }
+
+                BackHandler(
+                    enabled = !isTop
+                ) {
+                    scope.launch {
+                        scope.launch {
+                            categoriesListState.animateScrollToItem(0)
                         }
                     }
                 }
+
+
+                val categoriesPagingItems = currentCategories.associate { homeCategory ->
+                    Pair(homeCategory.nameRes, homeCategory.flow.collectAsLazyPagingItems())
+                }
+
+                val refreshState by remember {
+                    derivedStateOf {
+                        categoriesPagingItems.map { (_, pagingItems) ->
+                            pagingItems.loadState.refresh
+                        }
+                    }
+                }
+
+                when {
+                    refreshState.contains(LoadState.Loading) -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    refreshState.any { categoryRefreshState ->
+                        categoryRefreshState is LoadState.Error
+                    } -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = "Errors:\n${
+                                    categoriesPagingItems.filter { (_, pagingItems) ->
+                                        pagingItems.loadState.refresh is LoadState.Error
+                                    }.map { (_, pagingItems) ->
+                                        (pagingItems.loadState.refresh as LoadState.Error).error.message ?: ""
+                                    }.toSet().joinToString(".\n") { it }
+                                }.\nRetry?",
+                            )
+                            Spacer(
+                                modifier = Modifier.size(16.dp)
+                            )
+                            IconButton(
+                                onClick = {
+                                    categoriesPagingItems.filter { (_, pagingItems) ->
+                                        pagingItems.loadState.refresh is LoadState.Error
+                                    }.forEach { (_, pagingItems) ->
+                                        pagingItems.refresh()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape),
+                                colors = IconButtonDefaults.filledIconButtonColors(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = stringResource(id = R.string.load_retry_desc)
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            state = categoriesListState,
+                            contentPadding = PaddingValues(
+                                bottom = 8.dp
+                            )
+                        ) {
+                            for (category in currentCategories) {
+                                stickyHeader(
+                                    key = -category.nameRes,
+                                    contentType = MediaRowContentTypes.HEADER,
+                                ) {
+                                    Card(
+                                        modifier = Modifier.padding(all = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(id = category.nameRes),
+                                            modifier = Modifier
+                                                .padding(
+                                                    all = 16.dp,
+                                                ),
+                                            style = MaterialTheme.typography.headlineLarge,
+                                        )
+                                    }
+                                }
+
+                                item(
+                                    key = category.nameRes,
+                                    contentType = MediaRowContentTypes.CATEGORY_ROW,
+                                ) {
+                                    MediaRow(
+                                        medias = categoriesPagingItems[category.nameRes] as? LazyPagingItems<HomeItem>
+                                            ?: throw Exception("Missing category!"), // TODO: Handle nullness and unchecked cast
+                                        watchlistCallback = homeViewModel::watchlistClick,
+                                        onMediaClick = { mediaId, mediaType, position ->
+                                            onMediaClick(
+                                                mediaId,
+                                                mediaType,
+                                                DetailsOrigin.CATEGORY,
+                                                category.name,
+                                                position
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } ?: Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
         }
     } ?: Box(

@@ -8,11 +8,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 interface FirestoreFavoritesDataSource {
-    fun toggleFavorite(id: Int, type: String)
+    suspend fun toggleFavorite(id: Int, type: String)
 
     val favoritesMapFlow: Flow<Map<Int, String>>
 
@@ -21,24 +22,25 @@ interface FirestoreFavoritesDataSource {
     suspend fun getFavoritesIdsByCollection(collectionName: String): List<Int>
 }
 
-// TODO: Add Di and all
+/* TODO: Add Di and all, Also add data class and use toObject of Firestore to map favorites.
+ *  Use the new suspending and flow operations of Firestore.
+ */
 class FirestoreFavoritesDataSourceImpl : FirestoreFavoritesDataSource {
 
     private val scope = CoroutineScope(SupervisorJob())
     private val db = Firebase.firestore
 
-    override fun toggleFavorite(id: Int, type: String) {
+    override suspend fun toggleFavorite(id: Int, type: String) {
         collectionName.value?.let { currentNAme ->
-            db.collection(currentNAme).whereEqualTo("id", id)
-                .get()
-                .addOnSuccessListener {
-                    if (it.isEmpty) {
-                        db.collection(currentNAme).document("$id")
-                            .set(hashMapOf("type" to type, "id" to id))
-                    } else {
-                        db.collection(currentNAme).document("$id").delete()
-                    }
-                }
+            val result = db.collection(currentNAme).whereEqualTo("id", id)
+                .get().await()
+
+            if (result.isEmpty) {
+                db.collection(currentNAme).document("$id")
+                    .set(hashMapOf("type" to type, "id" to id)).await()
+            } else {
+                db.collection(currentNAme).document("$id").delete().await()
+            }
         }
     }
 

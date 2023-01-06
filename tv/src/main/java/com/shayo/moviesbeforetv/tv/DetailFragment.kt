@@ -12,6 +12,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.map
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.analytics.ktx.logEvent
+import com.google.firebase.ktx.Firebase
 import com.shayo.movies.*
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
@@ -52,6 +56,10 @@ class DetailFragment : DetailsSupportFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Firebase.analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW) {
+            param(FirebaseAnalytics.Param.SCREEN_NAME, "Details - TV")
+        }
 
         backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
@@ -111,8 +119,8 @@ class DetailFragment : DetailsSupportFragment() {
                             DetailFragmentDirections.actionDetailFragmentSelf(
                                 item.movie.id,
                                 item.movie.type,
-                                navArgs.origin,
                                 queryOrCategory,
+                                navArgs.origin,
                                 item.position
                             )
                         findNavController().navigate(action)
@@ -179,6 +187,10 @@ class DetailFragment : DetailsSupportFragment() {
                     null
                 }
             )
+
+            if (topCastAndDirector?.cast?.isEmpty() == true) {
+                mAdapter.removeItems(1, 1)
+            }
 
             castOrMoviesRowAdapter.addAll(0, topCastAndDirector?.cast?.mapIndexed { index, credit ->
                 BrowseMovieLoadResult.BrowseMovieLoadSuccess.BrowseCredit(
@@ -326,16 +338,20 @@ class DetailsDescriptionPresenter : AbstractDetailsDescriptionPresenter() {
 
             viewHolder.subtitle.maxLines = 6
 
-            viewHolder.subtitle.text =
-                "${item.releaseDate}\n${"%.1f".format(item.voteAverage)} / 10\n" +
-                        "${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}" +
-                        "${
-                            item.topCastAndDirector?.let {
-                                "Cast: ${
-                                    it.cast.take(4).joinToString(", ") { credit -> credit.name }
-                                }${it.director?.name?.let { director -> "\nDirector: $director" } ?: ""}"
-                            }
-                        }"
+            viewHolder.subtitle.text = buildString {
+                append("${item.releaseDate}\n${"%.1f".format(item.voteAverage)} / 10\n")
+                append("${item.genres.joinToString(" - ") { it.name }}\n${item.runtime?.let { "Runtime: $it minutes\n" } ?: ""}")
+                append(
+                    item.topCastAndDirector?.let {
+                        buildString {
+                            append("Cast: ")
+                            append(it.cast.take(4).joinToString(", ") { credit -> credit.name })
+                            append(it.director?.name?.let { director -> "\nDirector: $director" }
+                                ?: "")
+                        }
+                    }
+                )
+            }
 
             viewHolder.body.text = item.overview
             viewHolder.body.textScaleX = 1.1F

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,16 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
@@ -41,9 +39,12 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.shayo.movies.PagedItem
 import com.shayo.moviespoint.ui.LongWatchlistButton
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLifecycleComposeApi::class,
+@OptIn(
+    ExperimentalMaterial3Api::class, ExperimentalLifecycleComposeApi::class,
     ExperimentalComposeUiApi::class
 )
 @Composable
@@ -53,7 +54,6 @@ internal fun SearchScreen(
     onPersonClicked: (personId: Int) -> Unit,
     searchViewModel: SearchViewModel = hiltViewModel(),
 ) {
-
     val appBarState = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     val scaffoldModifier = remember { Modifier.nestedScroll(appBarState.nestedScrollConnection) }
@@ -66,8 +66,18 @@ internal fun SearchScreen(
         LazyListState()
     }
 
-    LaunchedEffect(key1 = query) {
-        searchListState.scrollToItem(0)
+    val historyListState = rememberSaveable(saver = LazyListState.Saver) {
+        LazyListState()
+    }
+
+    LaunchedEffect(true) {
+        searchViewModel.query.drop(1).collectLatest {
+            if (searchListState.firstVisibleItemIndex != 0)
+                searchListState.animateScrollToItem(0)
+
+            if (historyListState.firstVisibleItemIndex != 0)
+                historyListState.animateScrollToItem(0)
+        }
     }
 
     val scope = rememberCoroutineScope()
@@ -75,12 +85,18 @@ internal fun SearchScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     BackHandler(
-        enabled = query.isNotEmpty()
+        enabled = query.isNotEmpty() || appBarState.state.collapsedFraction != 0.0F
     ) {
-        if (searchListState.firstVisibleItemIndex != 0) {
+        if (appBarState.state.collapsedFraction != 0.0F) {
             scope.launch {
-                searchListState.animateScrollToItem(0)
-                appBarState.nestedScrollConnection.onPreScroll(
+
+                if (searchListState.firstVisibleItemIndex != 0)
+                    searchListState.animateScrollToItem(0)
+
+                if (historyListState.firstVisibleItemIndex != 0)
+                    historyListState.animateScrollToItem(0)
+
+                /*appBarState.nestedScrollConnection.onPreScroll(
                     Offset.Infinite,
                     NestedScrollSource.Fling
                 )
@@ -92,12 +108,14 @@ internal fun SearchScreen(
                 appBarState.nestedScrollConnection.onPostFling(
                     Velocity(0F, Offset.Infinite.y),
                     Velocity.Zero
-                )
+                )*/
+
+                appBarState.state.heightOffset = 0F
+
+                focusRequester.requestFocus()
+
+                keyboardController?.show()
             }
-
-            focusRequester.requestFocus()
-
-            keyboardController?.show()
         } else {
             // TODO: Think if we want to show the keyboard twice
 
@@ -157,7 +175,9 @@ internal fun SearchScreen(
             )
         }
     ) { paddingValues ->
-        if (query.isEmpty()) {
+        val history by searchViewModel.historyFlow.collectAsStateWithLifecycle()
+
+        if (query.isEmpty() && history?.isEmpty() == true) {
             Box(
                 modifier = Modifier
                     .padding(paddingValues)
@@ -171,11 +191,59 @@ internal fun SearchScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+        } else if (query.isEmpty() && history?.isEmpty() == false) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 32.dp),
+                state = historyListState,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                items(
+                    items = history!!,
+                    key = { it }
+                ) { query ->
+                    ListItem(
+                        headlineText = {
+                            Text(
+                                text = query,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            searchViewModel.onQueryTextChange(query)
+
+                            searchViewModel.onResultClick(query)
+                        }
+                    )
+
+                    Divider()
+                }
+
+                item {
+                    TextButton(onClick = { searchViewModel.deleteHistory() }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete_history),
+                        )
+                    }
+
+                    Text(text = stringResource(R.string.delete_history))
+                }
+            }
         } else {
             SearchResults(
                 results = searchViewModel.searchFlow.collectAsLazyPagingItems(),
-                onMediaClicked = onMediaClicked,
-                onPersonClicked = onPersonClicked,
+                onMediaClicked = { mediaId, mediaType, title ->
+                    searchViewModel.onResultClick(title)
+                    onMediaClicked(mediaId, mediaType)
+                },
+                onPersonClicked = { personId, personName ->
+                    searchViewModel.onResultClick(personName)
+                    onPersonClicked(personId)
+                },
                 onWatchlistClick = searchViewModel::watchlistClick,
                 searchListState = searchListState,
                 modifier = Modifier.padding(paddingValues),
@@ -189,8 +257,8 @@ internal fun SearchScreen(
 @Composable
 internal fun SearchResults(
     results: LazyPagingItems<PagedItem>,
-    onMediaClicked: (mediaId: Int, mediaType: String) -> Unit,
-    onPersonClicked: (personId: Int) -> Unit,
+    onMediaClicked: (mediaId: Int, mediaType: String, title: String) -> Unit,
+    onPersonClicked: (personId: Int, personName: String) -> Unit,
     onWatchlistClick: (id: Int, type: String) -> Unit,
     searchListState: LazyListState,
     modifier: Modifier = Modifier,
@@ -269,11 +337,12 @@ internal fun SearchResults(
                             modifier = Modifier.clickable {
                                 when (item) {
                                     is PagedItem.PagedCredit -> {
-                                        onPersonClicked(item.credit.id)
+                                        onPersonClicked(item.credit.id, item.credit.name)
                                     }
                                     is PagedItem.PagedMovie -> onMediaClicked(
                                         item.movie.id,
-                                        item.movie.type
+                                        item.movie.type,
+                                        item.movie.title,
                                     )
                                 }
                             },

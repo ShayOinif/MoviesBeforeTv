@@ -1,7 +1,6 @@
 package com.shayo.moviespoint.work
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -17,8 +16,6 @@ class UpdateCategoriesWorker @AssistedInject constructor(
     private val moviesRepository: MoviesRepository,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
-        Log.d("MyTAg", "doWork")
-
         categories.forEach { category ->
             if (!moviesRepository.updateCategory(
                     type = category.type,
@@ -28,7 +25,6 @@ class UpdateCategoriesWorker @AssistedInject constructor(
                 return Result.retry()
         }
 
-        Log.d("MyTAg", "done")
         return Result.success()
     }
 }

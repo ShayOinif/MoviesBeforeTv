@@ -20,6 +20,10 @@ import androidx.navigation.fragment.findNavController
 import androidx.paging.PagingData
 import androidx.recyclerview.widget.DiffUtil
 import com.bumptech.glide.Glide
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.analytics.ktx.logEvent
+import com.google.firebase.ktx.Firebase
 import com.shayo.movies.Credit
 import com.shayo.movies.Movie
 import com.shayo.movies.MovieManager
@@ -27,6 +31,7 @@ import com.shayo.movies.UserRepository
 import com.shayo.moviesbeforetv.tv.utils.RegularArrayAdapterDiff
 import com.shayo.moviesbeforetv.tv.utils.loadDrawable
 import com.shayo.moviesbeforetv.tv.utils.mapToBrowseResult
+import com.shayo.moviespoint.data.usage.UsageRepository
 import com.shayo.moviespoint.ui.DetailsOrigin
 import com.shayo.moviespoint.viewmodels.home.HomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -48,6 +53,9 @@ class MyBrowseFragment : BrowseSupportFragment() {
     @Inject
     lateinit var userRepository: UserRepository
 
+    @Inject
+    lateinit var usageRepository: UsageRepository
+
     private val homeViewModel by viewModels<HomeViewModel>()
 
     private val categoriesAdapters =
@@ -63,6 +71,10 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Firebase.analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW) {
+            param(FirebaseAnalytics.Param.SCREEN_NAME, "Home - TV")
+        }
 
         backgroundViewModel = activityViewModels<BackgroundViewModel>().value
 
@@ -88,13 +100,16 @@ class MyBrowseFragment : BrowseSupportFragment() {
         homeViewModel.setup(
             withGenres = true,
             BrowseMovieLoadResult.BrowseMovieLoadSuccess::class,
-        ) { media, category ->
+        ) { media, category, _ ->
             media.mapToBrowseResult(category)
         }
 
         settingsAdapter =
             ArrayObjectAdapter(SettingsCard(resources.displayMetrics.widthPixels))
-        settingsAdapter.add(SettingsCardType.Account(null))
+
+        settingsAdapter.add(SettingsCardType.Account(userImage = null))
+
+        settingsAdapter.add(SettingsCardType.Usage(enabled = true))
 
         rowsAdapter.add(ListRow(HeaderItem("Settings"), settingsAdapter))
 
@@ -167,46 +182,6 @@ class MyBrowseFragment : BrowseSupportFragment() {
                                         )
                                     }
                                 }
-
-                                /*launch {
-                                    categoriesAdapters[index].loadStateFlow.collectLatest { state ->
-
-                                        when (state.refresh) {
-                                            is LoadState.Error -> {
-
-                                                reloadList.add {
-                                                    categoriesAdapters[index].refresh()
-                                                }
-                                            }
-
-                                            else -> {
-
-                                                reloadList.remove {
-                                                    categoriesAdapters[index].refresh()
-                                                }
-                                            }
-                                        }
-
-                                        when (state.mediator?.append) {
-                                            is LoadState.Error -> {
-                                                Log.d("MyTag", "append problem")
-                                                reloadList.add {
-                                                    categoriesAdapters[index].retry()
-                                                }
-                                            }
-                                            else -> {
-                                                Log.d("MyTag", "append ok")
-                                                reloadList.remove {
-                                                    categoriesAdapters[index].retry()
-                                                }
-                                            }
-                                        }
-
-                                        if (state.append.endOfPaginationReached) {
-                                            Log.d("MyTag", "end of pagination")
-                                        }
-                                    }
-                                }*/
                             }
                         }
                     }
@@ -262,6 +237,15 @@ class MyBrowseFragment : BrowseSupportFragment() {
                         }
                     }
                 }
+
+                launch {
+                    usageRepository.usageEnabledFlow.collectLatest { usage ->
+                        settingsAdapter.replace(
+                            1,
+                            SettingsCardType.Usage(enabled = usage)
+                        )
+                    }
+                }
             }
         }
     }
@@ -298,14 +282,14 @@ class MyBrowseFragment : BrowseSupportFragment() {
                     MyBrowseFragmentDirections.actionMyBrowseFragmentToDetailFragment(
                         item.movie.id,
                         item.movie.type,
-                        if (row?.id == FAVORITES_ID) DetailsOrigin.WATCHLIST else DetailsOrigin.CATEGORY,
                         item.category ?: "",
+                        if (row?.id == FAVORITES_ID) DetailsOrigin.WATCHLIST else DetailsOrigin.CATEGORY,
                         item.position
                     )
                 findNavController().navigate(action)
             } else if (item is SettingsCardType) {
-                if (item is SettingsCardType.Account) {
-                    viewLifecycleOwner.lifecycleScope.launch {
+                when (item) {
+                    is SettingsCardType.Account -> viewLifecycleOwner.lifecycleScope.launch {
 
                         userRepository.getCurrentUser()?.photoUrl?.toString()?.let {
 
@@ -321,6 +305,7 @@ class MyBrowseFragment : BrowseSupportFragment() {
 
                         findNavController().navigate(MyBrowseFragmentDirections.actionMyBrowseFragmentToLoginFragment())
                     }
+                    is SettingsCardType.Usage -> usageRepository.changeUsage(!item.enabled)
                 }
 
             }
@@ -438,7 +423,7 @@ class CardPresenter(width: Int, private val person: Boolean = false) : Presenter
                                     item.movie.voteAverage
                                 )
                             }/10${if (item.movie.genres.isNotEmpty()) " - ${item.movie.genres[0].name}" else ""}${
-                                item.movie.releaseDate?.take(4)?.let{ " - $it" } ?: ""
+                                item.movie.releaseDate?.take(4)?.let { " - $it" } ?: ""
                             }"
                         }
 
