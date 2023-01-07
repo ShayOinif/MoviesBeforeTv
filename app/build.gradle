@@ -8,6 +8,10 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        release {
+        }
+    }
     namespace 'com.shayo.moviespoint'
     compileSdk 33
 
@@ -28,6 +32,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {

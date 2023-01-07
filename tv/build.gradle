@@ -9,6 +9,10 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        release {
+        }
+    }
     namespace 'com.shayo.moviesbeforetv.tv'
     compileSdk 33
 
