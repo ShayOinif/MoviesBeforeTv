@@ -32,6 +32,7 @@ building a scaleable and modularized app.
 - Accounts using google account through Firebase Auth
 - Analytics and crash reports, if enabled by the app in the account screen
 - Some offline functionality, all cached data is available. Whenever connectivity is required the appropriate screen notifies about it.
+- All of the functionality is supported in an Android TV apk, as well.
 
 Feel free to download the apk in the main folder to test the app for yourself.
 If you wish to debug it, further instructions on configuration with firebase and api keys
