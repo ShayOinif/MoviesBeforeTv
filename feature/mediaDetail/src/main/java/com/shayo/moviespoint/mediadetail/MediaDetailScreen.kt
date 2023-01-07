@@ -34,6 +34,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.SubcomposeAsyncImage
+import coil.imageLoader
 import coil.request.ImageRequest
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
@@ -106,6 +107,22 @@ internal fun MediaDetailScreen(
 
     mediaDetailUiState?.let {
         it.media?.let { currentMedia ->
+
+            /* TODO: Remember the request and reuse it when showing the backdrop instead of
+             *  the trailer. We do it to save the image in cache for the offline experience.
+             */
+            LaunchedEffect(key1 = true) {
+                currentMedia.backdropPath?.let { backdropPath ->
+                    localContext.imageLoader.execute(
+                        ImageRequest.Builder(localContext)
+                            .tag("Coil request for image") // TODO
+                            .data("https://image.tmdb.org/t/p/w1280$backdropPath") // TODO: Get base url from somewhere else and size of image
+                            .crossfade(true)
+                            .build()
+                    )
+                }
+            }
+
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(154.dp),
                 modifier = Modifier.fillMaxSize(),
