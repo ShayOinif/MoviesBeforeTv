@@ -22,6 +22,11 @@ It is a work in progress 🚧.
 There are some bugs, lots of refactoring and some features to add as well testing
 but the main goal was to experiment with the leanback library and
 building a scaleable and modularized app.
+Since I'm starting a new position, I won't have time to keep maintaining this repo,
+but maybe I'll drop by once in a while to add functionality or solve bugs.
+
+The main key issues were fixed, especially adding usage reporting with Firebase and full support of the YouTube player
+for the trailers.
 
 #Main Features:
 - Cached home categories that update once a day, with inifinte scroll using a network api and a local db
